@@ -15,6 +15,7 @@ const App = {
   init() {
     this.initDarkMode();
     Thumbnails.init();
+    Summaries.cleanOldCache();
     Settings.init();
     this.bindEvents();
     this.handleRoute();
@@ -95,6 +96,7 @@ const App = {
     this.state.loading = true;
 
     if (!append) {
+      Summaries.cancelAutoGenerate();
       Stories.renderSkeleton();
     }
 
@@ -110,6 +112,11 @@ const App = {
       }
 
       Stories.showLoadMore(result.hasMore);
+
+      // Auto-generate summaries in the background
+      if (result.stories.length > 0) {
+        Summaries.autoGenerate(result.stories);
+      }
     } catch (err) {
       if (!append) Stories.clear();
       this.showError('Failed to load stories', () => this.loadFeed(append));
@@ -131,6 +138,7 @@ const App = {
 
   // --- Reader ---
   showReader(storyId) {
+    Summaries.cancelAutoGenerate();
     this.state.currentItemId = storyId;
     if (this.state.view === 'feed') {
       this.state.feedScrollY = window.scrollY;
@@ -175,6 +183,7 @@ const App = {
 
   // --- Comments ---
   showComments(itemId) {
+    Summaries.cancelAutoGenerate();
     this.state.currentItemId = itemId;
     if (this.state.view === 'feed') {
       this.state.feedScrollY = window.scrollY;
