@@ -110,6 +110,131 @@
   animation: fadeIn 0.3s ease forwards;
 }
 
+/* Reader typography */
+.reader-text {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: #374151;
+}
+.dark .reader-text { color: #d1d5db; }
+
+.reader-text h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.5em 0 0.5em;
+  line-height: 1.3;
+  color: #111827;
+}
+.dark .reader-text h1 { color: #f3f4f6; }
+
+.reader-text h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.3em 0 0.4em;
+  line-height: 1.3;
+  color: #1f2937;
+}
+.dark .reader-text h2 { color: #e5e7eb; }
+
+.reader-text h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.2em 0 0.3em;
+  line-height: 1.4;
+  color: #1f2937;
+}
+.dark .reader-text h3 { color: #e5e7eb; }
+
+.reader-text p {
+  margin-bottom: 1em;
+}
+
+.reader-text ul, .reader-text ol {
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+}
+.reader-text ul { list-style-type: disc; }
+.reader-text ol { list-style-type: decimal; }
+.reader-text li { margin-bottom: 0.3em; }
+
+.reader-text blockquote {
+  border-left: 3px solid #ff6600;
+  padding: 0.5em 1em;
+  margin: 1em 0;
+  background: #fff7ed;
+  color: #92400e;
+  border-radius: 0 4px 4px 0;
+}
+.dark .reader-text blockquote {
+  background: #1c1917;
+  color: #fbbf24;
+  border-left-color: #ff8533;
+}
+
+.reader-text pre {
+  overflow-x: auto;
+  padding: 0.75em 1em;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: #f1f5f9;
+  margin: 1em 0;
+}
+.dark .reader-text pre { background: #1e293b; }
+
+.reader-text code {
+  font-size: 0.85em;
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  background: #f1f5f9;
+}
+.dark .reader-text code { background: #1e293b; }
+
+.reader-text pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
+.reader-text a {
+  color: #ff6600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dark .reader-text a { color: #ff8533; }
+
+.reader-text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 1em 0;
+}
+
+.reader-text hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1.5em 0;
+}
+.dark .reader-text hr { border-top-color: #374151; }
+
+.reader-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.9rem;
+}
+.reader-text th, .reader-text td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.dark .reader-text th, .dark .reader-text td { border-color: #374151; }
+.reader-text th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.dark .reader-text th { background: #1f2937; }
+
 /* Settings modal */
 .settings-overlay {
   opacity: 0;

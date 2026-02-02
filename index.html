@@ -9,8 +9,9 @@
   <title>HN Reader</title>
   <base href="/HN/">
   <link rel="icon" href="static/favicon.ico">
-  <link rel="apple-touch-icon" href="static/icon-200.png">
+  <link rel="apple-touch-icon" href="static/icon-192.png">
   <link rel="manifest" href="static/manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -81,6 +82,21 @@
       </div>
     </div>
 
+    <!-- Reader View (slides over feed) -->
+    <div id="view-reader" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 overflow-y-auto hidden">
+      <div class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-2xl mx-auto px-3 py-2 flex items-center gap-3">
+          <button id="btn-reader-back" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Back">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <span class="text-sm font-medium truncate">Reader</span>
+        </div>
+      </div>
+      <div id="reader-content" class="max-w-2xl mx-auto pb-20"></div>
+    </div>
+
     <!-- Comment View (slides over feed) -->
     <div id="view-comments" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 overflow-y-auto hidden">
       <!-- Comment nav -->
@@ -145,8 +161,14 @@
   <script src="static/js/thumbnails.js"></script>
   <script src="static/js/summaries.js"></script>
   <script src="static/js/settings.js"></script>
+  <script src="static/js/reader.js"></script>
   <script src="static/js/stories.js"></script>
   <script src="static/js/comments.js"></script>
   <script src="static/js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/HN/sw.js').catch(() => {});
+    }
+  </script>
 </body>
 </html>

@@ -6,9 +6,10 @@ const App = {
     currentPage: 0,
     currentItemId: null,
     feedScrollY: 0,
+    readerScrollY: 0,
     loading: false,
     initialized: false,
-    view: 'feed' // 'feed' | 'comments'
+    view: 'feed' // 'feed' | 'comments' | 'reader'
   },
 
   init() {
@@ -38,12 +39,17 @@ const App = {
     const hash = location.hash || '#/top';
     const parts = hash.slice(2).split('/'); // remove '#/'
 
-    if (parts[0] === 'item' && parts[1]) {
+    if (parts[0] === 'read' && parts[1]) {
+      this.showReader(parseInt(parts[1]));
+    } else if (parts[0] === 'item' && parts[1]) {
       this.showComments(parseInt(parts[1]));
     } else {
       const tab = ['top', 'new', 'best'].includes(parts[0]) ? parts[0] : 'top';
       if (this.state.view === 'comments') {
         this.hideComments();
+      }
+      if (this.state.view === 'reader') {
+        this.hideReader();
       }
       if (!this.state.initialized || tab !== this.state.currentTab || this.state.view !== 'feed') {
         this.state.initialized = true;
@@ -108,10 +114,66 @@ const App = {
     this.loadFeed();
   },
 
+  // --- Reader ---
+  showReader(storyId) {
+    this.state.currentItemId = storyId;
+    if (this.state.view === 'feed') {
+      this.state.feedScrollY = window.scrollY;
+    }
+    // Hide comments if showing (e.g. navigating from comments → reader)
+    if (this.state.view === 'comments') {
+      const commentsPanel = $('#view-comments');
+      commentsPanel.classList.add('hidden');
+      commentsPanel.classList.remove('view-enter', 'view-exit');
+    }
+    this.state.view = 'reader';
+
+    const panel = $('#view-reader');
+    panel.classList.remove('hidden');
+    panel.classList.add('view-enter');
+    panel.scrollTop = 0;
+
+    location.hash = `#/read/${storyId}`;
+    Reader.load(storyId);
+  },
+
+  hideReader() {
+    const panel = $('#view-reader');
+    panel.classList.remove('view-enter');
+    panel.classList.add('view-exit');
+    this.state.view = 'feed';
+
+    setTimeout(() => {
+      panel.classList.add('hidden');
+      panel.classList.remove('view-exit');
+      window.scrollTo(0, this.state.feedScrollY);
+    }, 200);
+  },
+
   // --- Comments ---
   showComments(itemId) {
     this.state.currentItemId = itemId;
-    this.state.feedScrollY = window.scrollY;
+    if (this.state.view === 'feed') {
+      this.state.feedScrollY = window.scrollY;
+    }
+    this.state.view = 'comments';
+
+    const panel = $('#view-comments');
+    panel.classList.remove('hidden');
+    panel.classList.add('view-enter');
+    panel.scrollTop = 0;
+
+    location.hash = `#/item/${itemId}`;
+    Comments.load(itemId);
+  },
+
+  showCommentsFromReader(itemId) {
+    // Hide reader first, then show comments
+    const readerPanel = $('#view-reader');
+    readerPanel.classList.add('hidden');
+    readerPanel.classList.remove('view-enter', 'view-exit');
+
+    this.state.currentItemId = itemId;
     this.state.view = 'comments';
 
     const panel = $('#view-comments');
@@ -137,8 +199,13 @@ const App = {
   },
 
   goBack() {
-    this.hideComments();
-    location.hash = `#/${this.state.currentTab}`;
+    if (this.state.view === 'reader') {
+      this.hideReader();
+      location.hash = `#/${this.state.currentTab}`;
+    } else if (this.state.view === 'comments') {
+      this.hideComments();
+      location.hash = `#/${this.state.currentTab}`;
+    }
   },
 
   // --- Error handling ---
@@ -176,12 +243,17 @@ const App = {
     // Load more
     $('#btn-load-more').addEventListener('click', () => this.loadMore());
 
-    // Back button
+    // Back buttons
     $('#btn-back').addEventListener('click', () => this.goBack());
+    $('#btn-reader-back').addEventListener('click', () => this.goBack());
 
     // Handle browser back
     window.addEventListener('popstate', () => {
-      if (this.state.view === 'comments' && !location.hash.startsWith('#/item/')) {
+      const hash = location.hash || '';
+      if (this.state.view === 'reader' && !hash.startsWith('#/read/')) {
+        this.hideReader();
+      }
+      if (this.state.view === 'comments' && !hash.startsWith('#/item/')) {
         this.hideComments();
       }
     });
