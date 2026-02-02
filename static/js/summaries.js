@@ -103,13 +103,6 @@ const Summaries = {
       el.style.transition = 'opacity 0.3s ease';
       el.style.opacity = '1';
     });
-
-    // Hide the TL;DR button
-    const row = container.closest('.story-row');
-    if (row) {
-      const btn = row.querySelector('.summarize-btn');
-      if (btn) btn.classList.add('hidden');
-    }
   },
 
   async _generateWithSignal(story, signal) {

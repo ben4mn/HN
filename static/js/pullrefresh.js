@@ -1,9 +1,9 @@
 // pullrefresh.js - Apple-style pull-to-refresh gesture
 
 const PullRefresh = {
-  THRESHOLD: 70,     // px to pull before triggering
-  MAX_PULL: 120,     // max visual pull distance
-  RESISTANCE: 0.45,  // rubber-band resistance
+  THRESHOLD: 110,    // px to pull before triggering
+  MAX_PULL: 160,     // max visual pull distance
+  RESISTANCE: 0.4,   // rubber-band resistance
 
   _startY: 0,
   _pulling: false,
@@ -35,8 +35,8 @@ const PullRefresh = {
     const dy = e.touches[0].clientY - this._startY;
     if (dy < 0) return;
 
-    // Prevent default scroll once we're pulling
-    if (dy > 10) {
+    // Require deliberate downward pull before activating
+    if (dy > 30) {
       this._pulling = true;
     }
     if (!this._pulling) return;

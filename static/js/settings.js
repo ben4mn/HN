@@ -6,7 +6,6 @@ const Settings = {
 
   init() {
     this.bindEvents();
-    this.updateSummaryVisibility();
   },
 
   getApiKey() {
@@ -19,7 +18,6 @@ const Settings = {
     } else {
       localStorage.removeItem(this.STORAGE_KEY);
     }
-    this.updateSummaryVisibility();
   },
 
   isEnabled() {
@@ -28,14 +26,6 @@ const Settings = {
 
   setEnabled(val) {
     localStorage.setItem(this.ENABLED_KEY, val ? 'true' : 'false');
-    this.updateSummaryVisibility();
-  },
-
-  updateSummaryVisibility() {
-    const show = this.isEnabled();
-    $$('.summarize-btn').forEach(btn => {
-      btn.classList.toggle('hidden', !show);
-    });
   },
 
   open() {
