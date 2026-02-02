@@ -69,7 +69,7 @@
         var isOp = op && comment.by === op;
         var time = comment.time ? humanizeDuration(Date.now() - comment.time * 1000, { largest: 1, round: true }) + ' ago' : '';
 
-        var html = '<div class="comment-node pl-3 border-l-2 ' + colorClass + ' mb-3 ml-' + Math.min(depth * 2, 8) + '" data-id="' + comment.id + '">';
+        var html = '<div class="comment-node pl-3 border-l-2 ' + colorClass + ' mb-3" style="margin-left: ' + Math.min(depth * 12, 48) + 'px" data-id="' + comment.id + '">';
 
         // Header
         html += '<div class="flex items-center gap-2 mb-1 text-xs text-gray-500 dark:text-gray-400">';
@@ -135,6 +135,49 @@
         });
     }
 
+    // Render story header card at top of panel
+    function renderStoryHeader(story) {
+        var hnItemUrl = 'https://news.ycombinator.com/item?id=' + story.id;
+        var titleUrl = story.url || hnItemUrl;
+        var time = story.time ? humanizeDuration(Date.now() - story.time * 1000, { largest: 1, round: true }) + ' ago' : '';
+
+        var html = '<div class="story-header px-1 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">';
+
+        // Title
+        html += '<h2 class="text-lg font-semibold leading-snug mb-2">';
+        html += '<a href="' + escapeHtml(titleUrl) + '" target="_blank" class="hover:text-hn dark:text-gray-100">' + escapeHtml(story.title || '') + '</a>';
+        html += '</h2>';
+
+        // Meta line
+        html += '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mb-2">';
+        if (story.by) {
+            html += '<a href="https://news.ycombinator.com/user?id=' + encodeURIComponent(story.by) + '" target="_blank" class="font-semibold hover:text-hn">' + escapeHtml(story.by) + '</a>';
+        }
+        if (time) html += '<span>' + time + '</span>';
+        if (story.score != null) html += '<span>' + story.score + ' point' + (story.score !== 1 ? 's' : '') + '</span>';
+        html += '<span>' + (story.descendants || 0) + ' comment' + ((story.descendants || 0) !== 1 ? 's' : '') + '</span>';
+        html += '</div>';
+
+        // External link (for link posts)
+        if (story.url) {
+            var domain;
+            try { domain = new URL(story.url).hostname.replace(/^www\./, ''); } catch(e) { domain = story.url; }
+            html += '<div class="text-xs text-gray-400 dark:text-gray-500 mb-2">';
+            html += '<a href="' + escapeHtml(story.url) + '" target="_blank" class="hover:text-hn"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>' + escapeHtml(domain) + '</a>';
+            html += '</div>';
+        }
+
+        // Story text (Ask HN, Show HN, jobs)
+        if (story.text) {
+            html += '<div class="story-text text-sm leading-relaxed dark:text-gray-300 mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg break-words">';
+            html += story.text;
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
     // Open comment panel for a story
     function openCommentPanel(hnId, commentUrl, author) {
         currentStoryAuthor = author || '';
@@ -145,7 +188,7 @@
         var title = document.getElementById('comment-panel-title');
 
         if (hnLink) hnLink.href = commentUrl || ('https://news.ycombinator.com/item?id=' + hnId);
-        if (title) title.textContent = 'Comments';
+        if (title) title.textContent = 'Loading...';
         body.innerHTML = renderSkeleton();
 
         // Show panel
@@ -162,6 +205,7 @@
         if (cached) {
             try {
                 var data = JSON.parse(cached);
+                if (title && data.title) title.textContent = data.title;
                 renderStoryComments(data, body);
                 return;
             } catch(e) { /* ignore, re-fetch */ }
@@ -173,7 +217,7 @@
                 body.innerHTML = '<p class="text-gray-500 text-center py-8">Failed to load comments.</p>';
                 return;
             }
-            if (title) title.textContent = (story.descendants || 0) + ' Comments';
+            if (title) title.textContent = story.title || ((story.descendants || 0) + ' Comments');
             if (story.by) currentStoryAuthor = story.by;
 
             // Cache
@@ -186,13 +230,15 @@
     }
 
     function renderStoryComments(story, body) {
+        var header = renderStoryHeader(story);
+
         if (!story.kids || story.kids.length === 0) {
-            body.innerHTML = '<p class="text-gray-500 text-center py-8">No comments yet.</p>';
+            body.innerHTML = header + '<p class="text-gray-500 text-center py-8">No comments yet.</p>';
             return;
         }
 
         var op = story.by || currentStoryAuthor;
-        body.innerHTML = '<div class="comments-root"></div>';
+        body.innerHTML = header + '<div class="comments-root"></div>';
         var root = body.querySelector('.comments-root');
 
         // Placeholder for loading

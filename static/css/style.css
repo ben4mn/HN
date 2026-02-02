@@ -49,12 +49,14 @@
 
 /* Comment panel slide transitions */
 #comment-panel.open {
-    transform: translateY(0) !important;
+    --tw-translate-y: 0 !important;
+    --tw-translate-x: 0 !important;
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) !important;
 }
-@media (min-width: 768px) {
-    #comment-panel.open {
-        transform: translateX(0) !important;
-    }
+
+/* Prevent horizontal overflow from long URLs/code in comments */
+#comment-panel-body {
+    overflow-x: hidden;
 }
 
 /* Comment overlay fade in */

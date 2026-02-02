@@ -69,7 +69,7 @@
         var isOp = op && comment.by === op;
         var time = comment.time ? humanizeDuration(Date.now() - comment.time * 1000, { largest: 1, round: true }) + ' ago' : '';
 
-        var html = '<div class="comment-node pl-3 border-l-2 ' + colorClass + ' mb-3 ml-' + Math.min(depth * 2, 8) + '" data-id="' + comment.id + '">';
+        var html = '<div class="comment-node pl-3 border-l-2 ' + colorClass + ' mb-3" style="margin-left: ' + Math.min(depth * 12, 48) + 'px" data-id="' + comment.id + '">';
 
         // Header
         html += '<div class="flex items-center gap-2 mb-1 text-xs text-gray-500 dark:text-gray-400">';

@@ -22,6 +22,14 @@
         <script>
             tailwind.config = {
                 darkMode: 'class',
+                safelist: [
+                    'ml-0','ml-2','ml-4','ml-6','ml-8',
+                    'pl-3','border-l-2','mb-3','mb-1','mb-2','mb-4',
+                    'h-2','h-3','w-24','w-full','w-3/4','w-1/2',
+                    'min-h-[44px]','min-w-[44px]',
+                    'text-[10px]',
+                    'bg-hn',
+                ],
                 theme: {
                     extend: {
                         colors: {
@@ -2593,7 +2601,10 @@
             <span class="last-updated" data-submitted="2026-02-01T23:35:50Z" title="2026-02-01 23:35:50 UTC">
                 Last updated: <span>2026-02-01 23:35:50 UTC</span>
             </span>
-        
+
+        <span id="live-indicator" class="hidden items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+            <span class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Live
+        </span>
     </footer>
 </div>
 
@@ -2632,6 +2643,7 @@
 <script src="/static/js/darkmode.js"></script>
 <script src="/static/js/hn.js"></script>
 <script src="/static/js/comments.js"></script>
+<script src="/static/js/live-update.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.4.26/dist/index.js" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" referrerpolicy="no-referrer"></script>
 </body>
