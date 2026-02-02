@@ -17,6 +17,7 @@ const App = {
     Thumbnails.init();
     Summaries.cleanOldCache();
     Settings.init();
+    PullRefresh.init();
     this.bindEvents();
     this.handleRoute();
     window.addEventListener('hashchange', () => this.handleRoute());

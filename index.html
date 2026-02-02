@@ -25,7 +25,7 @@
   </script>
   <link rel="stylesheet" href="static/css/style.css">
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen" style="overscroll-behavior-y:contain">
 
   <!-- Nav Bar -->
   <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 safe-top">
@@ -72,6 +72,19 @@
 
   <!-- Main Content -->
   <main class="max-w-2xl mx-auto relative">
+    <!-- Pull to Refresh Indicator -->
+    <div id="ptr-container" class="ptr-container">
+      <div class="ptr-glow"></div>
+      <div class="ptr-spinner">
+        <svg class="ptr-icon" viewBox="0 0 24 24" fill="none">
+          <path class="ptr-arrow" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-5 5m5-5l5 5"/>
+        </svg>
+        <svg class="ptr-loader" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="56.5" stroke-dashoffset="40"/>
+        </svg>
+      </div>
+    </div>
+
     <!-- Story Feed View -->
     <div id="view-feed" class="pb-20">
       <div id="story-list"></div>
@@ -169,6 +182,7 @@
   <script src="static/js/reader.js"></script>
   <script src="static/js/stories.js"></script>
   <script src="static/js/comments.js"></script>
+  <script src="static/js/pullrefresh.js"></script>
   <script src="static/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
