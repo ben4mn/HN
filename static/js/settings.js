@@ -81,5 +81,13 @@ const Settings = {
     $('#settings-overlay').addEventListener('click', () => this.close());
     $('#settings-close').addEventListener('click', () => this.close());
     $('#settings-save').addEventListener('click', () => this.save());
+    $('#settings-paste').addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) $('#settings-api-key').value = text.trim();
+      } catch {
+        // Clipboard access denied — user can paste manually
+      }
+    });
   }
 };

@@ -130,8 +130,13 @@
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium mb-1.5" for="settings-api-key">OpenAI API Key</label>
-          <input id="settings-api-key" type="password" placeholder="sk-..."
-                 class="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-hn/50">
+          <div class="flex gap-2">
+            <input id="settings-api-key" type="password" placeholder="sk-..."
+                   class="flex-1 min-w-0 px-3 py-2 text-base border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-hn/50">
+            <button id="settings-paste" class="px-3 py-2 text-sm font-medium text-hn border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-orange-50 dark:hover:bg-gray-800 transition-colors shrink-0">
+              Paste
+            </button>
+          </div>
           <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Stored locally. Used for article summaries.</p>
         </div>
         <div class="flex items-center justify-between">
