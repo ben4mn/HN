@@ -58,6 +58,13 @@ const Stories = {
               </svg>
               <span class="font-medium">Read</span>
             </button>` : ''}
+            <a href="https://news.ycombinator.com/item?id=${story.id}" target="_blank" rel="noopener"
+               class="reply-hn-btn flex items-center gap-1 px-2 py-0.5 rounded text-hn hover:bg-orange-50 dark:hover:bg-gray-800 transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+              </svg>
+              <span class="font-medium">Reply</span>
+            </a>
           </div>
           <div class="summary-container" data-story-id="${story.id}"></div>
         </div>

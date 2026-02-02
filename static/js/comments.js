@@ -80,6 +80,20 @@ const Comments = {
       summaryArea.appendChild(readBtn);
     }
 
+    // Reply on HN button
+    const replyBtn = createElement('button', {
+      className: 'flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-lg text-xs font-medium text-hn bg-orange-50 dark:bg-gray-800 hover:bg-orange-100 dark:hover:bg-gray-700 transition-colors',
+      innerHTML: `
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+        </svg>
+        Reply on HN`
+    });
+    replyBtn.addEventListener('click', () => {
+      window.open(`https://news.ycombinator.com/item?id=${story.id}`, '_blank', 'noopener');
+    });
+    summaryArea.appendChild(replyBtn);
+
     if (cached) {
       summaryArea.appendChild(Summaries.renderSummary(cached.long));
     } else if (showSummary) {
@@ -139,7 +153,10 @@ const Comments = {
     const bodyDiv = createElement('div', {
       className: 'comment-body px-3 pb-2'
     });
-    bodyDiv.innerHTML = `<div class="comment-text text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${comment.text || '<em class="text-gray-400">[deleted]</em>'}</div>`;
+    bodyDiv.innerHTML = `
+      <div class="comment-text text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${comment.text || '<em class="text-gray-400">[deleted]</em>'}</div>
+      <a href="https://news.ycombinator.com/reply?id=${comment.id}" target="_blank" rel="noopener"
+         class="inline-block mt-1 text-xs text-gray-400 hover:text-hn transition-colors">reply</a>`;
 
     // Children container
     const childrenDiv = createElement('div', { className: 'comment-children' });
