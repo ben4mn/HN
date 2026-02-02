@@ -1,17 +1,16 @@
 {
-  "name": "Hacker News",
-  "short_name": "HackerNews",
-  "descriptions": "Hacker News Summarized by ChatGPT",
-  "start_url": "/?utm_source=pwa",
-  "background_color": "#fff",
-  "display": "minimal-ui",
-  "scope": "/",
+  "name": "HN Reader",
+  "short_name": "HN",
+  "description": "A mobile-first Hacker News reader",
+  "start_url": "/HN/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#ff6600",
   "icons": [
     {
-      "src": "/static/icon-200.png",
-      "type": "image/png",
+      "src": "/HN/static/icon-200.png",
       "sizes": "200x200",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

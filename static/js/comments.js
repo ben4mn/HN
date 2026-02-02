@@ -1,352 +1,210 @@
-// AlienBlue-style comment system using HN Firebase API
-(function() {
-    var HN_API = 'https://hacker-news.firebaseio.com/v0/item/';
-    var CONCURRENCY_LIMIT = 15;
-    var MAX_AUTO_DEPTH = 3;
-    var THREAD_COLORS = ['comment-thread-border-0', 'comment-thread-border-1', 'comment-thread-border-2',
-                         'comment-thread-border-3', 'comment-thread-border-4', 'comment-thread-border-5'];
-    var commentCache = {};
-    var currentStoryAuthor = '';
+// comments.js - Threaded comments, collapse/expand, swipe gestures
 
-    // Fetch a single HN item
-    function fetchItem(id) {
-        return fetch(HN_API + id + '.json').then(function(r) { return r.json(); });
+const THREAD_COLORS = ['thread-0', 'thread-1', 'thread-2', 'thread-3', 'thread-4', 'thread-5'];
+
+const Comments = {
+  async load(itemId) {
+    const content = $('#comment-content');
+    content.innerHTML = this.renderSkeleton();
+
+    try {
+      const story = await HNApi.getComments(itemId, 0, 3);
+      if (!story) {
+        content.innerHTML = '<div class="p-8 text-center text-gray-500">Story not found</div>';
+        return;
+      }
+      content.innerHTML = '';
+      content.appendChild(this.renderHeader(story));
+
+      if (story._children && story._children.length > 0) {
+        const tree = createElement('div', { className: 'comment-tree' });
+        for (const child of story._children) {
+          tree.appendChild(this.renderComment(child, 0));
+        }
+        content.appendChild(tree);
+      } else if (!story.kids || story.kids.length === 0) {
+        content.appendChild(createElement('div', {
+          className: 'p-8 text-center text-gray-500 dark:text-gray-400 text-sm',
+          textContent: 'No comments yet'
+        }));
+      }
+    } catch (err) {
+      content.innerHTML = `
+        <div class="p-8 text-center">
+          <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">Failed to load comments</p>
+          <button onclick="Comments.load(${itemId})" class="text-sm text-hn font-medium">Retry</button>
+        </div>`;
     }
+  },
 
-    // Fetch with concurrency limit
-    function fetchAllWithLimit(ids, limit) {
-        var results = new Array(ids.length);
-        var index = 0;
-        var active = 0;
+  renderHeader(story) {
+    const domain = extractDomain(story.url);
+    const header = createElement('div', {
+      className: 'px-4 py-3 border-b border-gray-200 dark:border-gray-800'
+    });
+    header.innerHTML = `
+      <a href="${story.url || `https://news.ycombinator.com/item?id=${story.id}`}"
+         target="_blank" rel="noopener"
+         class="text-base font-semibold leading-snug hover:text-hn transition-colors">
+        ${escapeHtml(story.title)}
+      </a>
+      ${domain ? `<span class="text-xs text-gray-400 dark:text-gray-500 ml-1">(${escapeHtml(domain)})</span>` : ''}
+      <div class="flex items-center gap-3 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <span>${story.score} points</span>
+        <span>by ${escapeHtml(story.by)}</span>
+        <span>${timeAgo(story.time)}</span>
+        <span>${pluralize(story.descendants || 0, 'comment')}</span>
+      </div>
+      ${story.text ? `<div class="comment-text mt-3 text-sm text-gray-700 dark:text-gray-300">${story.text}</div>` : ''}
+    `;
+    return header;
+  },
 
-        return new Promise(function(resolve) {
-            function next() {
-                if (index >= ids.length && active === 0) {
-                    resolve(results);
-                    return;
-                }
-                while (active < limit && index < ids.length) {
-                    (function(i) {
-                        active++;
-                        fetchItem(ids[i]).then(function(data) {
-                            results[i] = data;
-                            active--;
-                            next();
-                        }).catch(function() {
-                            results[i] = null;
-                            active--;
-                            next();
-                        });
-                    })(index);
-                    index++;
-                }
-            }
-            if (ids.length === 0) resolve(results);
-            else next();
-        });
-    }
+  renderComment(comment, depth) {
+    if (!comment || comment.dead || comment.deleted) return document.createDocumentFragment();
 
-    // Render loading skeleton
-    function renderSkeleton() {
-        var html = '';
-        for (var i = 0; i < 5; i++) {
-            html += '<div class="mb-4 skeleton-pulse">' +
-                '<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>' +
-                '<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-1"></div>' +
-                '<div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>' +
-                '</div>';
-        }
-        return html;
-    }
+    const colorClass = THREAD_COLORS[depth % THREAD_COLORS.length];
+    const indent = Math.min(depth, 6);
 
-    // Render a single comment
-    function renderComment(comment, depth, op) {
-        if (!comment || comment.deleted || comment.dead) {
-            return '';
-        }
-
-        var colorClass = THREAD_COLORS[depth % THREAD_COLORS.length];
-        var isOp = op && comment.by === op;
-        var time = comment.time ? humanizeDuration(Date.now() - comment.time * 1000, { largest: 1, round: true }) + ' ago' : '';
-
-        var html = '<div class="comment-node pl-3 border-l-2 ' + colorClass + ' mb-3" style="margin-left: ' + Math.min(depth * 12, 48) + 'px" data-id="' + comment.id + '">';
-
-        // Header
-        html += '<div class="flex items-center gap-2 mb-1 text-xs text-gray-500 dark:text-gray-400">';
-        html += '<button class="collapse-toggle min-h-[44px] min-w-[44px] flex items-center justify-center -ml-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded" title="Collapse thread">';
-        html += '<i class="fa-solid fa-minus text-[10px]"></i>';
-        html += '</button>';
-        html += '<a href="https://news.ycombinator.com/user?id=' + encodeURIComponent(comment.by || '') + '" target="_blank" class="font-semibold hover:text-hn">' + escapeHtml(comment.by || '[deleted]') + '</a>';
-        if (isOp) {
-            html += '<span class="bg-hn text-white text-[10px] font-bold px-1.5 py-0.5 rounded">OP</span>';
-        }
-        html += '<span>' + time + '</span>';
-        html += '</div>';
-
-        // Body
-        html += '<div class="comment-body text-sm leading-relaxed dark:text-gray-300 mb-1 break-words">';
-        html += comment.text || '<em class="text-gray-400">[deleted]</em>';
-        html += '</div>';
-
-        // Children
-        if (comment.kids && comment.kids.length > 0) {
-            html += '<div class="comment-children">';
-            if (depth < MAX_AUTO_DEPTH) {
-                html += '<div class="children-placeholder" data-kids="' + comment.kids.join(',') + '" data-depth="' + (depth + 1) + '" data-op="' + escapeHtml(op || '') + '">';
-                html += '<div class="skeleton-pulse"><div class="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2 my-2"></div></div>';
-                html += '</div>';
-            } else {
-                html += '<button class="load-more-replies text-xs text-hn hover:underline min-h-[44px] flex items-center" data-kids="' + comment.kids.join(',') + '" data-depth="' + (depth + 1) + '" data-op="' + escapeHtml(op || '') + '">';
-                html += '<i class="fa-solid fa-chevron-down mr-1"></i> Load ' + comment.kids.length + ' repl' + (comment.kids.length === 1 ? 'y' : 'ies');
-                html += '</button>';
-            }
-            html += '</div>';
-        }
-
-        html += '</div>';
-        return html;
-    }
-
-    function escapeHtml(str) {
-        var div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
-    // Load and render children for a placeholder
-    function loadChildren(container, kids, depth, op) {
-        return fetchAllWithLimit(kids, CONCURRENCY_LIMIT).then(function(comments) {
-            var html = '';
-            comments.forEach(function(c) {
-                if (c) html += renderComment(c, depth, op);
-            });
-            container.innerHTML = html;
-
-            // Recursively load auto-depth children
-            var placeholders = container.querySelectorAll('.children-placeholder');
-            var promises = [];
-            placeholders.forEach(function(ph) {
-                var childKids = ph.dataset.kids.split(',').filter(Boolean);
-                var childDepth = parseInt(ph.dataset.depth);
-                var childOp = ph.dataset.op;
-                promises.push(loadChildren(ph, childKids, childDepth, childOp));
-            });
-            return Promise.all(promises);
-        });
-    }
-
-    // Render story header card at top of panel
-    function renderStoryHeader(story) {
-        var hnItemUrl = 'https://news.ycombinator.com/item?id=' + story.id;
-        var titleUrl = story.url || hnItemUrl;
-        var time = story.time ? humanizeDuration(Date.now() - story.time * 1000, { largest: 1, round: true }) + ' ago' : '';
-
-        var html = '<div class="story-header px-1 pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">';
-
-        // Title
-        html += '<h2 class="text-lg font-semibold leading-snug mb-2">';
-        html += '<a href="' + escapeHtml(titleUrl) + '" target="_blank" class="hover:text-hn dark:text-gray-100">' + escapeHtml(story.title || '') + '</a>';
-        html += '</h2>';
-
-        // Meta line
-        html += '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400 mb-2">';
-        if (story.by) {
-            html += '<a href="https://news.ycombinator.com/user?id=' + encodeURIComponent(story.by) + '" target="_blank" class="font-semibold hover:text-hn">' + escapeHtml(story.by) + '</a>';
-        }
-        if (time) html += '<span>' + time + '</span>';
-        if (story.score != null) html += '<span>' + story.score + ' point' + (story.score !== 1 ? 's' : '') + '</span>';
-        html += '<span>' + (story.descendants || 0) + ' comment' + ((story.descendants || 0) !== 1 ? 's' : '') + '</span>';
-        html += '</div>';
-
-        // External link (for link posts)
-        if (story.url) {
-            var domain;
-            try { domain = new URL(story.url).hostname.replace(/^www\./, ''); } catch(e) { domain = story.url; }
-            html += '<div class="text-xs text-gray-400 dark:text-gray-500 mb-2">';
-            html += '<a href="' + escapeHtml(story.url) + '" target="_blank" class="hover:text-hn"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>' + escapeHtml(domain) + '</a>';
-            html += '</div>';
-        }
-
-        // Story text (Ask HN, Show HN, jobs)
-        if (story.text) {
-            html += '<div class="story-text text-sm leading-relaxed dark:text-gray-300 mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg break-words">';
-            html += story.text;
-            html += '</div>';
-        }
-
-        html += '</div>';
-        return html;
-    }
-
-    // Open comment panel for a story
-    function openCommentPanel(hnId, commentUrl, author) {
-        currentStoryAuthor = author || '';
-        var panel = document.getElementById('comment-panel');
-        var overlay = document.getElementById('comment-overlay');
-        var body = document.getElementById('comment-panel-body');
-        var hnLink = document.getElementById('comment-hn-link');
-        var title = document.getElementById('comment-panel-title');
-
-        if (hnLink) hnLink.href = commentUrl || ('https://news.ycombinator.com/item?id=' + hnId);
-        if (title) title.textContent = 'Loading...';
-        body.innerHTML = renderSkeleton();
-
-        // Show panel
-        overlay.classList.remove('hidden');
-        requestAnimationFrame(function() {
-            overlay.classList.add('open');
-            panel.classList.add('open');
-        });
-        document.body.style.overflow = 'hidden';
-
-        // Check session cache
-        var cacheKey = 'hn_comments_' + hnId;
-        var cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-            try {
-                var data = JSON.parse(cached);
-                if (title && data.title) title.textContent = data.title;
-                renderStoryComments(data, body);
-                return;
-            } catch(e) { /* ignore, re-fetch */ }
-        }
-
-        // Fetch story
-        fetchItem(hnId).then(function(story) {
-            if (!story) {
-                body.innerHTML = '<p class="text-gray-500 text-center py-8">Failed to load comments.</p>';
-                return;
-            }
-            if (title) title.textContent = story.title || ((story.descendants || 0) + ' Comments');
-            if (story.by) currentStoryAuthor = story.by;
-
-            // Cache
-            try { sessionStorage.setItem(cacheKey, JSON.stringify(story)); } catch(e) {}
-
-            renderStoryComments(story, body);
-        }).catch(function() {
-            body.innerHTML = '<p class="text-gray-500 text-center py-8">Failed to load comments.</p>';
-        });
-    }
-
-    function renderStoryComments(story, body) {
-        var header = renderStoryHeader(story);
-
-        if (!story.kids || story.kids.length === 0) {
-            body.innerHTML = header + '<p class="text-gray-500 text-center py-8">No comments yet.</p>';
-            return;
-        }
-
-        var op = story.by || currentStoryAuthor;
-        body.innerHTML = header + '<div class="comments-root"></div>';
-        var root = body.querySelector('.comments-root');
-
-        // Placeholder for loading
-        root.innerHTML = '<div class="children-placeholder" data-kids="' + story.kids.join(',') + '" data-depth="0" data-op="' + escapeHtml(op) + '">' + renderSkeleton() + '</div>';
-
-        var ph = root.querySelector('.children-placeholder');
-        loadChildren(ph, story.kids, 0, op);
-    }
-
-    // Close comment panel
-    window.closeCommentPanel = function() {
-        var panel = document.getElementById('comment-panel');
-        var overlay = document.getElementById('comment-overlay');
-        panel.classList.remove('open');
-        overlay.classList.remove('open');
-        document.body.style.overflow = '';
-        setTimeout(function() {
-            overlay.classList.add('hidden');
-        }, 300);
-    };
-
-    // Event delegation for comment interactions
-    document.addEventListener('click', function(e) {
-        // Comment trigger buttons
-        var trigger = e.target.closest('.comment-trigger');
-        if (trigger) {
-            e.preventDefault();
-            var hnId = trigger.dataset.hnId;
-            var commentUrl = trigger.dataset.commentUrl;
-            var author = trigger.dataset.author;
-            if (hnId) openCommentPanel(hnId, commentUrl, author);
-            return;
-        }
-
-        // Collapse toggle
-        var collapseBtn = e.target.closest('.collapse-toggle');
-        if (collapseBtn) {
-            var commentNode = collapseBtn.closest('.comment-node');
-            if (!commentNode) return;
-            var bodyEl = commentNode.querySelector(':scope > .comment-body');
-            var childrenEl = commentNode.querySelector(':scope > .comment-children');
-            var icon = collapseBtn.querySelector('i');
-            if (bodyEl) bodyEl.classList.toggle('hidden');
-            if (childrenEl) childrenEl.classList.toggle('hidden');
-            if (icon) {
-                icon.classList.toggle('fa-minus');
-                icon.classList.toggle('fa-plus');
-            }
-            return;
-        }
-
-        // Load more replies
-        var loadMore = e.target.closest('.load-more-replies');
-        if (loadMore) {
-            var kids = loadMore.dataset.kids.split(',').filter(Boolean);
-            var depth = parseInt(loadMore.dataset.depth);
-            var op = loadMore.dataset.op;
-            var container = loadMore.parentNode;
-            loadMore.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading...';
-            loadMore.disabled = true;
-            loadChildren(container, kids, depth, op);
-            return;
-        }
+    const wrapper = createElement('div', {
+      className: 'comment-wrapper relative',
+      'data-id': comment.id
     });
 
-    // Swipe-to-collapse on touch devices
-    var touchStartX = 0;
-    var touchStartY = 0;
-    var swipeTarget = null;
-
-    document.addEventListener('touchstart', function(e) {
-        var node = e.target.closest('.comment-node');
-        if (!node || !document.getElementById('comment-panel').classList.contains('open')) return;
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        swipeTarget = node;
-    }, { passive: true });
-
-    document.addEventListener('touchend', function(e) {
-        if (!swipeTarget) return;
-        var endX = e.changedTouches[0].clientX;
-        var endY = e.changedTouches[0].clientY;
-        var diffX = endX - touchStartX;
-        var diffY = Math.abs(endY - touchStartY);
-
-        // Only count horizontal swipes
-        if (Math.abs(diffX) > 50 && diffY < 30) {
-            var bodyEl = swipeTarget.querySelector(':scope > .comment-body');
-            var childrenEl = swipeTarget.querySelector(':scope > .comment-children');
-            var icon = swipeTarget.querySelector(':scope > div .collapse-toggle i');
-
-            if (diffX < 0) {
-                // Swipe left: collapse
-                if (bodyEl) bodyEl.classList.add('hidden');
-                if (childrenEl) childrenEl.classList.add('hidden');
-                if (icon) { icon.classList.remove('fa-minus'); icon.classList.add('fa-plus'); }
-            } else {
-                // Swipe right: expand
-                if (bodyEl) bodyEl.classList.remove('hidden');
-                if (childrenEl) childrenEl.classList.remove('hidden');
-                if (icon) { icon.classList.remove('fa-plus'); icon.classList.add('fa-minus'); }
-            }
-        }
-        swipeTarget = null;
-    }, { passive: true });
-
-    // Close panel on Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeCommentPanel();
+    const inner = createElement('div', {
+      className: `border-l-2 ${colorClass}`,
+      style: `margin-left: ${indent * 12}px`
     });
-})();
+
+    // Comment header + body
+    const headerDiv = createElement('div', {
+      className: 'comment-header flex items-center gap-2 px-3 pt-2 pb-1 cursor-pointer touch-target select-none'
+    });
+    headerDiv.innerHTML = `
+      <span class="text-xs font-medium text-hn">${escapeHtml(comment.by || '[deleted]')}</span>
+      <span class="text-xs text-gray-400 dark:text-gray-500">${timeAgo(comment.time)}</span>
+      <span class="collapse-indicator text-xs text-gray-400 ml-auto">[&ndash;]</span>
+    `;
+
+    const bodyDiv = createElement('div', {
+      className: 'comment-body px-3 pb-2'
+    });
+    bodyDiv.innerHTML = `<div class="comment-text text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${comment.text || '<em class="text-gray-400">[deleted]</em>'}</div>`;
+
+    // Children container
+    const childrenDiv = createElement('div', { className: 'comment-children' });
+
+    // Render loaded children
+    if (comment._children && comment._children.length > 0) {
+      for (const child of comment._children) {
+        childrenDiv.appendChild(this.renderComment(child, depth + 1));
+      }
+    }
+
+    // "Load N replies" button for unloaded deep children
+    if (comment.kids && comment.kids.length > 0 && (!comment._children || comment._children.length === 0)) {
+      const loadBtn = createElement('button', {
+        className: 'text-xs text-hn font-medium px-3 py-2 hover:underline touch-target',
+        style: `margin-left: ${(indent + 1) * 12}px`,
+        textContent: `Load ${pluralize(comment.kids.length, 'reply')}`,
+        onClick: async () => {
+          loadBtn.textContent = 'Loading...';
+          loadBtn.disabled = true;
+          try {
+            const full = await HNApi.getComments(comment.id, 0, 3);
+            if (full._children) {
+              loadBtn.remove();
+              for (const child of full._children) {
+                childrenDiv.appendChild(this.renderComment(child, depth + 1));
+              }
+            }
+          } catch {
+            loadBtn.textContent = `Load ${pluralize(comment.kids.length, 'reply')} (retry)`;
+            loadBtn.disabled = false;
+          }
+        }
+      });
+      childrenDiv.appendChild(loadBtn);
+    }
+
+    // Collapse toggle
+    let collapsed = false;
+    headerDiv.addEventListener('click', () => {
+      collapsed = !collapsed;
+      bodyDiv.classList.toggle('collapsed', collapsed);
+      childrenDiv.classList.toggle('hidden', collapsed);
+      headerDiv.querySelector('.collapse-indicator').textContent = collapsed ? `[+${this.countChildren(comment)}]` : '[–]';
+    });
+
+    inner.appendChild(headerDiv);
+    inner.appendChild(bodyDiv);
+    inner.appendChild(childrenDiv);
+    wrapper.appendChild(inner);
+
+    // Swipe gestures
+    this.addSwipeGesture(wrapper, headerDiv, () => {
+      if (!collapsed) headerDiv.click(); // swipe left = collapse
+    }, () => {
+      if (collapsed) headerDiv.click(); // swipe right = expand
+    });
+
+    return wrapper;
+  },
+
+  countChildren(comment) {
+    if (!comment._children) return comment.kids ? comment.kids.length : 0;
+    let count = comment._children.length;
+    for (const child of comment._children) {
+      count += this.countChildren(child);
+    }
+    return count;
+  },
+
+  addSwipeGesture(el, header, onSwipeLeft, onSwipeRight) {
+    let startX = 0;
+    let startY = 0;
+    let swiping = false;
+
+    el.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      swiping = false;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        swiping = true;
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+      if (!swiping) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx < -50) onSwipeLeft();
+      else if (dx > 50) onSwipeRight();
+    }, { passive: true });
+  },
+
+  renderSkeleton() {
+    let html = `
+      <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-800 space-y-2">
+        <div class="skeleton bg-gray-200 dark:bg-gray-700 h-5 w-full"></div>
+        <div class="skeleton bg-gray-200 dark:bg-gray-700 h-5 w-3/4"></div>
+        <div class="skeleton bg-gray-200 dark:bg-gray-700 h-3 w-1/2 mt-2"></div>
+      </div>`;
+    for (let i = 0; i < 5; i++) {
+      const ml = (i % 3) * 12;
+      html += `
+        <div class="px-3 py-2" style="margin-left:${ml}px">
+          <div class="border-l-2 border-gray-200 dark:border-gray-700 pl-3 space-y-2">
+            <div class="skeleton bg-gray-200 dark:bg-gray-700 h-3 w-24"></div>
+            <div class="skeleton bg-gray-200 dark:bg-gray-700 h-3 w-full"></div>
+            <div class="skeleton bg-gray-200 dark:bg-gray-700 h-3 w-5/6"></div>
+          </div>
+        </div>`;
+    }
+    return html;
+  }
+};

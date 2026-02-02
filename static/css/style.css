@@ -1,72 +1,94 @@
-/* Clear float utility */
-.clear-both { clear: both; }
+/* Thread depth colors */
+.thread-0 { border-left-color: #ff6600; }
+.thread-1 { border-left-color: #3b82f6; }
+.thread-2 { border-left-color: #22c55e; }
+.thread-3 { border-left-color: #a855f7; }
+.thread-4 { border-left-color: #ec4899; }
+.thread-5 { border-left-color: #eab308; }
 
-/* Visited link styling */
-.post-url:visited { color: #9ca3af; }
-
-/* Summary text word wrap */
-.summary-text {
-    padding-top: 4px;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+/* Skeleton pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+.skeleton {
+  animation: pulse 1.5s ease-in-out infinite;
+  border-radius: 4px;
 }
 
-.summary-text .gist .gist-file .gist-data {
-    max-height: 250px;
+/* Slide transitions */
+.view-enter {
+  animation: slideIn 0.25s ease-out forwards;
+}
+.view-exit {
+  animation: slideOut 0.2s ease-in forwards;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
 }
 
-.summary-text pre {
-    font-size: 1em;
-    line-height: 1.42857143;
-    border: none;
-    border-radius: 6px;
-    padding: 12px;
+/* Comment collapse transition */
+.comment-body {
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+}
+.comment-body.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
 }
 
-/* QR code for screenshots */
-.post-item .qrcode {
-    float: right;
-    display: none;
-    margin-top: 5px;
+/* Comment text styling */
+.comment-text p { margin-bottom: 0.5em; }
+.comment-text a {
+  color: #ff6600;
+  text-decoration: underline;
+  word-break: break-all;
 }
+.dark .comment-text a { color: #ff8533; }
+.comment-text pre {
+  overflow-x: auto;
+  padding: 0.5em;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background: #f1f5f9;
+}
+.dark .comment-text pre { background: #1e293b; }
+.comment-text code {
+  font-size: 0.85em;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  background: #f1f5f9;
+}
+.dark .comment-text code { background: #1e293b; }
 
-/* Comment threading colors */
-.comment-thread-border-0 { border-left-color: #ff6600; }
-.comment-thread-border-1 { border-left-color: #3b82f6; }
-.comment-thread-border-2 { border-left-color: #22c55e; }
-.comment-thread-border-3 { border-left-color: #a855f7; }
-.comment-thread-border-4 { border-left-color: #ec4899; }
-.comment-thread-border-5 { border-left-color: #eab308; }
+/* Touch-friendly targets */
+.touch-target { min-height: 44px; min-width: 44px; }
 
-/* Loading skeleton animation */
-@keyframes skeleton-pulse {
-    0%, 100% { opacity: 0.4; }
-    50% { opacity: 0.8; }
+/* Swipe hint */
+.swipe-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #ff6600;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
-.skeleton-pulse {
-    animation: skeleton-pulse 1.5s ease-in-out infinite;
-}
+.swiping .swipe-indicator { opacity: 1; }
 
-/* Comment panel slide transitions */
-#comment-panel.open {
-    --tw-translate-y: 0 !important;
-    --tw-translate-x: 0 !important;
-    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) !important;
-}
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-/* Prevent horizontal overflow from long URLs/code in comments */
-#comment-panel-body {
-    overflow-x: hidden;
-}
-
-/* Comment overlay fade in */
-#comment-overlay.open {
-    opacity: 1;
-}
-
-/* Swipe hint animation */
-@keyframes swipe-hint {
-    0% { transform: translateX(0); }
-    50% { transform: translateX(-4px); }
-    100% { transform: translateX(0); }
-}
+/* Story row hover */
+.story-row { transition: background-color 0.1s; }
+.story-row:active { background-color: #f1f5f9; }
+.dark .story-row:active { background-color: #1e293b; }
