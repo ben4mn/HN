@@ -27,8 +27,9 @@ const Stories = {
     const showSummary = typeof Settings !== 'undefined' && Settings.isEnabled();
     const cached = typeof Summaries !== 'undefined' ? Summaries.getCached(story.id) : null;
 
+    const isRead = App.isRead(story.id);
     const row = createElement('div', {
-      className: 'story-row px-4 py-3 border-b border-gray-100 dark:border-gray-800'
+      className: `story-row px-4 py-3 border-b border-gray-100 dark:border-gray-800${isRead ? ' story-read' : ''}`
     });
 
     row.innerHTML = `

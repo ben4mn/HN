@@ -21,6 +21,21 @@ const App = {
     window.addEventListener('hashchange', () => this.handleRoute());
   },
 
+  // --- Read State ---
+  markRead(storyId) {
+    const key = 'hn_read';
+    const ids = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!ids.includes(storyId)) {
+      ids.push(storyId);
+      localStorage.setItem(key, JSON.stringify(ids));
+    }
+  },
+
+  isRead(storyId) {
+    const ids = JSON.parse(localStorage.getItem('hn_read') || '[]');
+    return ids.includes(storyId);
+  },
+
   // --- Dark Mode ---
   initDarkMode() {
     const stored = localStorage.getItem('hn_dark');
@@ -127,6 +142,14 @@ const App = {
       commentsPanel.classList.remove('view-enter', 'view-exit');
     }
     this.state.view = 'reader';
+    this.markRead(storyId);
+
+    // Update feed row styling live
+    const trigger = $(`[data-story-id="${storyId}"]`);
+    if (trigger) {
+      const feedRow = trigger.closest('.story-row');
+      if (feedRow) feedRow.classList.add('story-read');
+    }
 
     const panel = $('#view-reader');
     panel.classList.remove('hidden');

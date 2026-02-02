@@ -1,3 +1,11 @@
+/* Safe area inset for Dynamic Island / notch */
+.safe-top { padding-top: env(safe-area-inset-top); }
+
+/* Read state */
+.story-read .story-title-link { color: #9ca3af; }
+.dark .story-read .story-title-link { color: #6b7280; }
+.story-read .story-title-link:hover { color: #ff6600; }
+
 /* Thread depth colors */
 .thread-0 { border-left-color: #ff6600; }
 .thread-1 { border-left-color: #3b82f6; }
