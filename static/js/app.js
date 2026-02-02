@@ -13,6 +13,8 @@ const App = {
 
   init() {
     this.initDarkMode();
+    Thumbnails.init();
+    Settings.init();
     this.bindEvents();
     this.handleRoute();
     window.addEventListener('hashchange', () => this.handleRoute());

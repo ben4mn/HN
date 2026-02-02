@@ -92,3 +92,54 @@
 .story-row { transition: background-color 0.1s; }
 .story-row:active { background-color: #f1f5f9; }
 .dark .story-row:active { background-color: #1e293b; }
+
+/* Thumbnail */
+.thumbnail-container {
+  transition: opacity 0.3s ease;
+}
+
+/* Thumbnail & summary fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.thumbnail-fade {
+  animation: fadeIn 0.3s ease forwards;
+}
+.summary-fade {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* Settings modal */
+.settings-overlay {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.settings-overlay.active {
+  opacity: 1;
+}
+.settings-modal {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+}
+.settings-modal.active {
+  transform: translateY(0);
+}
+@media (min-width: 640px) {
+  .settings-modal {
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .settings-modal.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
