@@ -1,4 +1,4 @@
-// extractive.js - Client-side extractive summarizer using TF-IDF sentence scoring
+// extractive.js - Client-side extractive summarizer using TextRank + lead bias + MMR
 
 const ExtractiveSummarizer = {
   // Clean raw extracted text before processing
@@ -37,15 +37,21 @@ const ExtractiveSummarizer = {
     return false;
   },
 
+  // Common abbreviations that shouldn't trigger sentence splits
+  _ABBREVS: /(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|Ave|Blvd|Gen|Gov|Sgt|Cpl|Pvt|Rev|Hon|Pres|Vol|Dept|Est|Fig|Inc|Corp|Ltd|Co|vs|etc|approx|i\.e|e\.g|U\.S|U\.K|U\.N)\./gi,
+
   // Split text into sentences, handling common abbreviations
   _splitSentences(text) {
     const clean = this._cleanText(text);
+    // Protect abbreviations by replacing their dots with a placeholder
+    const placeholder = '\u0000';
+    const protected_ = clean.replace(this._ABBREVS, match => match.replace(/\./g, placeholder));
     // Split on sentence-ending punctuation followed by space + uppercase or end
-    const raw = clean.match(/[^.!?]*[.!?]+[\s]|[^.!?]*[.!?]+$/g);
+    const raw = protected_.match(/[^.!?]*[.!?]+[\s]|[^.!?]*[.!?]+$/g);
     if (!raw) return [clean];
     return raw
-      .map(s => s.trim())
-      .filter(s => s.length > 20 && s.split(/\s+/).length >= 4 && !this._isJunkSentence(s));
+      .map(s => s.replace(new RegExp(placeholder, 'g'), '.').trim())
+      .filter(s => s.length > 25 && s.split(/\s+/).length >= 5 && !this._isJunkSentence(s));
   },
 
   // Tokenize into lowercase words, strip punctuation
@@ -69,58 +75,114 @@ const ExtractiveSummarizer = {
     'while','found','made','between','many','before','long','great','those'
   ]),
 
-  // Compute term frequencies for a list of tokens (excluding stop words)
-  _termFrequency(tokens) {
+  // Get filtered tokens (no stop words, min length 3)
+  _contentTokens(tokens) {
+    return tokens.filter(t => !this._STOP_WORDS.has(t) && t.length > 2);
+  },
+
+  // Build a TF vector for a sentence (term -> normalized frequency)
+  _tfVector(tokens) {
     const tf = {};
-    const filtered = tokens.filter(t => !this._STOP_WORDS.has(t) && t.length > 2);
+    const filtered = this._contentTokens(tokens);
     filtered.forEach(t => { tf[t] = (tf[t] || 0) + 1; });
     const max = Math.max(...Object.values(tf), 1);
     Object.keys(tf).forEach(t => { tf[t] /= max; });
     return tf;
   },
 
-  // Compute IDF from an array of sentence token arrays
-  _inverseDocFrequency(sentenceTokens) {
-    const n = sentenceTokens.length;
-    const df = {};
-    sentenceTokens.forEach(tokens => {
-      const unique = new Set(tokens.filter(t => !this._STOP_WORDS.has(t)));
-      unique.forEach(t => { df[t] = (df[t] || 0) + 1; });
+  // Cosine similarity between two TF vectors
+  _cosineSim(vecA, vecB) {
+    const terms = new Set([...Object.keys(vecA), ...Object.keys(vecB)]);
+    let dot = 0, magA = 0, magB = 0;
+    terms.forEach(t => {
+      const a = vecA[t] || 0;
+      const b = vecB[t] || 0;
+      dot += a * b;
+      magA += a * a;
+      magB += b * b;
     });
-    const idf = {};
-    Object.keys(df).forEach(t => {
-      idf[t] = Math.log((n + 1) / (df[t] + 1)) + 1;
-    });
-    return idf;
+    const denom = Math.sqrt(magA) * Math.sqrt(magB);
+    return denom > 0 ? dot / denom : 0;
   },
 
-  // Score a single sentence
-  _scoreSentence(tokens, tf, idf, position, totalSentences, titleTokens) {
-    // TF-IDF score
-    let tfidf = 0;
-    const filtered = tokens.filter(t => !this._STOP_WORDS.has(t) && t.length > 2);
-    filtered.forEach(t => {
-      tfidf += (tf[t] || 0) * (idf[t] || 0);
-    });
-    // Normalize by sentence length to avoid favoring long sentences
-    const norm = Math.max(filtered.length, 1);
-    tfidf /= norm;
+  // Run TextRank: iterative PageRank-style scoring on sentence similarity graph
+  _textRank(tfVectors, damping = 0.85, iterations = 20, convergence = 0.0001) {
+    const n = tfVectors.length;
+    if (n === 0) return [];
 
-    // Position bias: boost first and last ~15% of sentences
-    let posBoost = 0;
-    const relPos = position / Math.max(totalSentences - 1, 1);
-    if (relPos < 0.15) posBoost = 0.3 * (1 - relPos / 0.15);
-    else if (relPos > 0.85) posBoost = 0.1 * ((relPos - 0.85) / 0.15);
-
-    // Title overlap: fraction of title keywords present in sentence
-    let titleBoost = 0;
-    if (titleTokens.length > 0) {
-      const sentSet = new Set(filtered);
-      const overlap = titleTokens.filter(t => sentSet.has(t)).length;
-      titleBoost = 0.3 * (overlap / titleTokens.length);
+    // Build similarity matrix (symmetric)
+    const sim = Array.from({ length: n }, () => new Float64Array(n));
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const s = this._cosineSim(tfVectors[i], tfVectors[j]);
+        sim[i][j] = s;
+        sim[j][i] = s;
+      }
     }
 
-    return tfidf + posBoost + titleBoost;
+    // Row sums for normalization
+    const rowSum = sim.map(row => row.reduce((a, b) => a + b, 0));
+
+    // Initialize scores uniformly
+    let scores = new Float64Array(n).fill(1 / n);
+
+    for (let iter = 0; iter < iterations; iter++) {
+      const newScores = new Float64Array(n);
+      let maxDelta = 0;
+
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j < n; j++) {
+          if (rowSum[j] > 0) {
+            sum += (sim[j][i] / rowSum[j]) * scores[j];
+          }
+        }
+        newScores[i] = (1 - damping) / n + damping * sum;
+        maxDelta = Math.max(maxDelta, Math.abs(newScores[i] - scores[i]));
+      }
+
+      scores = newScores;
+      if (maxDelta < convergence) break;
+    }
+
+    return Array.from(scores);
+  },
+
+  // MMR selection: pick sentences that are relevant but not redundant
+  _mmrSelect(candidates, tfVectors, count, lambda = 0.6) {
+    const selected = [];
+    const remaining = new Set(candidates.map((_, i) => i));
+
+    while (selected.length < count && remaining.size > 0) {
+      let bestIdx = -1;
+      let bestScore = -Infinity;
+
+      remaining.forEach(i => {
+        const relevance = candidates[i].score;
+
+        // Max similarity to any already-selected sentence
+        let maxSim = 0;
+        selected.forEach(j => {
+          const s = this._cosineSim(
+            tfVectors[candidates[i].idx],
+            tfVectors[candidates[j].idx]
+          );
+          maxSim = Math.max(maxSim, s);
+        });
+
+        const mmr = lambda * relevance - (1 - lambda) * maxSim;
+        if (mmr > bestScore) {
+          bestScore = mmr;
+          bestIdx = i;
+        }
+      });
+
+      if (bestIdx === -1) break;
+      selected.push(bestIdx);
+      remaining.delete(bestIdx);
+    }
+
+    return selected.map(i => candidates[i]);
   },
 
   /**
@@ -139,29 +201,51 @@ const ExtractiveSummarizer = {
       return { short: sentences[0], long: sentences.join(' ') };
     }
 
-    // Tokenize all sentences
+    // Tokenize all sentences and build TF vectors
     const sentenceTokens = sentences.map(s => this._tokenize(s));
-    const titleTokens = this._tokenize(title || '')
-      .filter(t => !this._STOP_WORDS.has(t) && t.length > 2);
+    const tfVectors = sentenceTokens.map(t => this._tfVector(t));
+    const titleTokens = this._contentTokens(
+      this._tokenize(title || '')
+    );
 
-    // Compute IDF across all sentences
-    const idf = this._inverseDocFrequency(sentenceTokens);
+    // TextRank scores
+    const trScores = this._textRank(tfVectors);
 
-    // Score each sentence
+    // Normalize TextRank scores to [0, 1]
+    const maxTR = Math.max(...trScores, 0.001);
+    const normTR = trScores.map(s => s / maxTR);
+
+    // Score each sentence with TextRank + lead bias + title overlap
     const scored = sentences.map((sent, i) => {
-      const tf = this._termFrequency(sentenceTokens[i]);
-      const score = this._scoreSentence(
-        sentenceTokens[i], tf, idf, i, sentences.length, titleTokens
-      );
+      // Base: TextRank score
+      let score = normTR[i];
+
+      // Lead-paragraph bias: strong boost for first ~20% of sentences
+      const relPos = i / Math.max(sentences.length - 1, 1);
+      if (relPos < 0.2) {
+        // First 2-3 sentences get heaviest boost, diminishing through 20%
+        const leadBoost = 0.4 * (1 - relPos / 0.2);
+        score += leadBoost;
+      }
+
+      // Title overlap: fraction of title keywords in sentence
+      if (titleTokens.length > 0) {
+        const sentContent = new Set(this._contentTokens(sentenceTokens[i]));
+        const overlap = titleTokens.filter(t => sentContent.has(t)).length;
+        score += 0.25 * (overlap / titleTokens.length);
+      }
+
       return { sent, score, idx: i };
     });
 
-    // Sort by score descending
+    // Sort by score descending for MMR selection
     scored.sort((a, b) => b.score - a.score);
 
-    // Pick top sentences, then re-order by original position for readability
-    const shortPicks = scored.slice(0, 2).sort((a, b) => a.idx - b.idx);
-    const longPicks = scored.slice(0, 4).sort((a, b) => a.idx - b.idx);
+    // Use MMR to select diverse, high-scoring sentences
+    const shortPicks = this._mmrSelect(scored, tfVectors, 2)
+      .sort((a, b) => a.idx - b.idx);
+    const longPicks = this._mmrSelect(scored, tfVectors, 4)
+      .sort((a, b) => a.idx - b.idx);
 
     return {
       short: shortPicks.map(s => s.sent).join(' '),
