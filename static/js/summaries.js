@@ -106,9 +106,6 @@ const Summaries = {
   },
 
   async _generateWithSignal(story, signal) {
-    const apiKey = Settings.getApiKey();
-    if (!apiKey) throw new Error('No API key configured');
-
     let articleText = await this._extractArticleWithSignal(story.url, signal);
 
     if (!articleText || articleText.length < 200) {
@@ -119,7 +116,12 @@ const Summaries = {
       articleText = articleText.slice(0, 4000);
     }
 
-    return await this._callOpenAIWithSignal(apiKey, story.title, articleText, signal);
+    const apiKey = Settings.getApiKey();
+    if (apiKey) {
+      return await this._callOpenAIWithSignal(apiKey, story.title, articleText, signal);
+    }
+
+    return ExtractiveSummarizer.summarize(articleText, story.title);
   },
 
   async _extractArticleWithSignal(url, signal) {

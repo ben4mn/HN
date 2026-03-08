@@ -1,5 +1,5 @@
 // sw.js - Service Worker for HN Reader PWA
-const CACHE_VERSION = 'hn-v6';
+const CACHE_VERSION = 'hn-v7';
 const PRECACHE_URLS = [
   '/HN/',
   '/HN/index.html',
@@ -7,6 +7,7 @@ const PRECACHE_URLS = [
   '/HN/static/js/utils.js',
   '/HN/static/js/api.js',
   '/HN/static/js/thumbnails.js',
+  '/HN/static/js/extractive.js',
   '/HN/static/js/summaries.js',
   '/HN/static/js/settings.js',
   '/HN/static/js/stories.js',

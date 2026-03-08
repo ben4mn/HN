@@ -21,7 +21,7 @@ const Settings = {
   },
 
   isEnabled() {
-    return localStorage.getItem(this.ENABLED_KEY) !== 'false' && !!this.getApiKey();
+    return localStorage.getItem(this.ENABLED_KEY) !== 'false';
   },
 
   setEnabled(val) {
