@@ -1,16 +1,51 @@
 // extractive.js - Client-side extractive summarizer using TF-IDF sentence scoring
 
 const ExtractiveSummarizer = {
+  // Clean raw extracted text before processing
+  _cleanText(text) {
+    return text
+      // Remove standalone URLs
+      .replace(/https?:\/\/\S+/g, '')
+      // Convert markdown links [text](url) to just text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Remove markdown image syntax ![alt](url)
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+      // Remove markdown headers
+      .replace(/^#{1,6}\s+/gm, '')
+      // Remove markdown bold/italic markers
+      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+      // Remove lines that are mostly special chars (nav, separators)
+      .replace(/^[^a-zA-Z]*$/gm, '')
+      // Collapse whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  // Check if a sentence is junk (links, nav items, boilerplate)
+  _isJunkSentence(sent) {
+    // Still contains URLs after cleaning
+    if (/https?:\/\//.test(sent)) return true;
+    // More than 30% of words are capitalized single words (nav menus)
+    const words = sent.split(/\s+/);
+    const capSingle = words.filter(w => w.length < 15 && /^[A-Z][a-z]*$/.test(w));
+    if (words.length > 2 && capSingle.length / words.length > 0.5) return true;
+    // Too many pipe/bullet separators (nav bars)
+    if ((sent.match(/[|>]/g) || []).length >= 3) return true;
+    // Mostly numbers or very short tokens (table data)
+    const alphaWords = words.filter(w => /[a-zA-Z]{2,}/.test(w));
+    if (alphaWords.length < words.length * 0.4) return true;
+    return false;
+  },
+
   // Split text into sentences, handling common abbreviations
   _splitSentences(text) {
-    // Normalize whitespace
-    const clean = text.replace(/\s+/g, ' ').trim();
+    const clean = this._cleanText(text);
     // Split on sentence-ending punctuation followed by space + uppercase or end
     const raw = clean.match(/[^.!?]*[.!?]+[\s]|[^.!?]*[.!?]+$/g);
     if (!raw) return [clean];
     return raw
       .map(s => s.trim())
-      .filter(s => s.length > 20 && s.split(/\s+/).length >= 4);
+      .filter(s => s.length > 20 && s.split(/\s+/).length >= 4 && !this._isJunkSentence(s));
   },
 
   // Tokenize into lowercase words, strip punctuation
