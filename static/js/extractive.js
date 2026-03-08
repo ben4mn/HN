@@ -1,9 +1,23 @@
 // extractive.js - Client-side extractive summarizer using TextRank + lead bias + MMR
 
 const ExtractiveSummarizer = {
+  // Strip Jina Reader metadata preamble before processing
+  _stripJinaPreamble(text) {
+    // Jina prepends "Title: ...\nURL Source: ...\nMarkdown Content:\n..."
+    const marker = 'Markdown Content:';
+    const idx = text.indexOf(marker);
+    if (idx !== -1) {
+      text = text.slice(idx + marker.length);
+    } else {
+      // Sometimes just "Title: ...\nURL Source: ...\n" without Markdown Content
+      text = text.replace(/^Title:.*$/m, '').replace(/^URL Source:.*$/m, '');
+    }
+    return text;
+  },
+
   // Clean raw extracted text before processing
   _cleanText(text) {
-    return text
+    return this._stripJinaPreamble(text)
       // Remove standalone URLs
       .replace(/https?:\/\/\S+/g, '')
       // Convert markdown links [text](url) to just text
@@ -14,6 +28,10 @@ const ExtractiveSummarizer = {
       .replace(/^#{1,6}\s+/gm, '')
       // Remove markdown bold/italic markers
       .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+      // Remove separator lines (=== or ---)
+      .replace(/^[-=]{3,}\s*$/gm, '')
+      // Remove lines that look like nav menus (many * bullets with links)
+      .replace(/^\s*\*\s+\[.*$/gm, '')
       // Remove lines that are mostly special chars (nav, separators)
       .replace(/^[^a-zA-Z]*$/gm, '')
       // Collapse whitespace
@@ -21,16 +39,24 @@ const ExtractiveSummarizer = {
       .trim();
   },
 
+  // Common site chrome / boilerplate phrases to detect
+  _NAV_PHRASES: /skip to content|toggle navigation|navigation menu|sign in|sign up|log in|cookie policy|privacy policy|terms of service|all rights reserved|subscribe to|newsletter/i,
+
   // Check if a sentence is junk (links, nav items, boilerplate)
   _isJunkSentence(sent) {
     // Still contains URLs after cleaning
     if (/https?:\/\//.test(sent)) return true;
-    // More than 30% of words are capitalized single words (nav menus)
+    // Known site chrome phrases
+    if (this._NAV_PHRASES.test(sent)) return true;
+    // ALL CAPS phrases (nav headers like "DEVELOPER WORKFLOWS", "APPLICATION SECURITY")
     const words = sent.split(/\s+/);
+    const allCaps = words.filter(w => w.length > 2 && w === w.toUpperCase() && /[A-Z]/.test(w));
+    if (allCaps.length >= 2 && allCaps.length / words.length > 0.4) return true;
+    // More than 30% of words are capitalized single words (nav menus)
     const capSingle = words.filter(w => w.length < 15 && /^[A-Z][a-z]*$/.test(w));
     if (words.length > 2 && capSingle.length / words.length > 0.5) return true;
     // Too many pipe/bullet separators (nav bars)
-    if ((sent.match(/[|>]/g) || []).length >= 3) return true;
+    if ((sent.match(/[|>*]/g) || []).length >= 3) return true;
     // Mostly numbers or very short tokens (table data)
     const alphaWords = words.filter(w => /[a-zA-Z]{2,}/.test(w));
     if (alphaWords.length < words.length * 0.4) return true;
