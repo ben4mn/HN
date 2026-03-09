@@ -105,6 +105,8 @@ const Summaries = {
     });
   },
 
+  WORKER_URL: 'https://hn-summarizer.ben4mn.workers.dev',
+
   async _generateWithSignal(story, signal) {
     let articleText = await this._extractArticleWithSignal(story.url, signal);
 
@@ -116,12 +118,48 @@ const Summaries = {
       articleText = articleText.slice(0, 4000);
     }
 
+    // Priority 1: User-provided OpenAI key
     const apiKey = Settings.getApiKey();
     if (apiKey) {
       return await this._callOpenAIWithSignal(apiKey, story.title, articleText, signal);
     }
 
-    return ExtractiveSummarizer.summarize(articleText, story.title);
+    // Priority 2: Gemini via Cloudflare Worker (free, no key needed)
+    try {
+      return await this._callWorkerWithSignal(story.title, articleText, signal);
+    } catch {
+      // Priority 3: Client-side extractive fallback
+      return ExtractiveSummarizer.summarize(articleText, story.title);
+    }
+  },
+
+  async _callWorkerWithSignal(title, text, signal) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const onAbort = () => controller.abort();
+    signal.addEventListener('abort', onAbort);
+
+    try {
+      const res = await fetch(this.WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, text }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Worker error ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data.short || !data.long) {
+        throw new Error('Invalid worker response');
+      }
+      return data;
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener('abort', onAbort);
+    }
   },
 
   async _extractArticleWithSignal(url, signal) {

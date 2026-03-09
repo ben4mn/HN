@@ -1,0 +1,6 @@
+name = "hn-summarizer"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+GEMINI_MODEL = "gemini-flash-latest"
