@@ -1,4 +1,4 @@
-// summaries.js - Article extraction via Jina Reader, OpenAI summaries, caching
+// summaries.js - Article extraction via Jina Reader, extractive summaries (TextRank), caching
 
 const Summaries = {
   CACHE_PREFIX: 'summary_',
@@ -105,8 +105,6 @@ const Summaries = {
     });
   },
 
-  WORKER_URL: 'https://hn-summarizer.ben4mn.workers.dev',
-
   async _generateWithSignal(story, signal) {
     let articleText = await this._extractArticleWithSignal(story.url, signal);
 
@@ -118,48 +116,7 @@ const Summaries = {
       articleText = articleText.slice(0, 4000);
     }
 
-    // Priority 1: User-provided OpenAI key
-    const apiKey = Settings.getApiKey();
-    if (apiKey) {
-      return await this._callOpenAIWithSignal(apiKey, story.title, articleText, signal);
-    }
-
-    // Priority 2: Gemini via Cloudflare Worker (free, no key needed)
-    try {
-      return await this._callWorkerWithSignal(story.title, articleText, signal);
-    } catch {
-      // Priority 3: Client-side extractive fallback
-      return ExtractiveSummarizer.summarize(articleText, story.title);
-    }
-  },
-
-  async _callWorkerWithSignal(title, text, signal) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const onAbort = () => controller.abort();
-    signal.addEventListener('abort', onAbort);
-
-    try {
-      const res = await fetch(this.WORKER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, text }),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        throw new Error(`Worker error ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (!data.short || !data.long) {
-        throw new Error('Invalid worker response');
-      }
-      return data;
-    } finally {
-      clearTimeout(timeout);
-      signal.removeEventListener('abort', onAbort);
-    }
+    return ExtractiveSummarizer.summarize(articleText, story.title);
   },
 
   async _extractArticleWithSignal(url, signal) {
@@ -181,41 +138,6 @@ const Summaries = {
     } catch {
       return null;
     }
-  },
-
-  async _callOpenAIWithSignal(apiKey, title, content, signal) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      signal,
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: 'You summarize articles. Return JSON with two fields: "short" (1-2 sentences, max 50 words) and "long" (2-3 sentences, max 100 words). Be factual and concise.'
-          },
-          {
-            role: 'user',
-            content: `Title: ${title}\n\nContent:\n${content}`
-          }
-        ]
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `OpenAI error ${res.status}`);
-    }
-
-    const data = await res.json();
-    const text = data.choices[0].message.content;
-    return JSON.parse(text);
   },
 
   async generate(story) {
@@ -246,10 +168,6 @@ const Summaries = {
       // just use title
     }
     return text;
-  },
-
-  _callOpenAI(apiKey, title, content) {
-    return this._callOpenAIWithSignal(apiKey, title, content, (new AbortController()).signal);
   },
 
   renderSummary(text) {

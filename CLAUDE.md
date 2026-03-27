@@ -36,7 +36,7 @@ utils.js → api.js → thumbnails.js → summaries.js → settings.js → reade
 
 **`Reader` (reader.js)** fetches articles via Jina Reader API (`r.jina.ai/{url}` with `Accept: text/markdown`), strips Jina metadata preamble, renders markdown with `marked.js`. Caches extracted articles in sessionStorage (30min TTL).
 
-**`Summaries` (summaries.js)** extracts article text via Jina Reader (plain text mode), sends to OpenAI `gpt-4o-mini` for short/long summaries. Falls back to title + top 5 comments if article extraction fails. Requires user-provided API key stored in localStorage.
+**`Summaries` (summaries.js)** extracts article text via Jina Reader (plain text mode), then generates extractive summaries client-side using TextRank (`extractive.js`). Falls back to title + top 5 comments if article extraction fails. No API keys required — fully offline-capable once text is extracted.
 
 ## External APIs
 
@@ -44,7 +44,6 @@ utils.js → api.js → thumbnails.js → summaries.js → settings.js → reade
 |---------|---------|---------|
 | `hacker-news.firebaseio.com/v0` | api.js | Story data and comments |
 | `r.jina.ai/{url}` | reader.js (markdown), summaries.js (plain text) | Article extraction |
-| `api.openai.com` | summaries.js | GPT-4o-mini summaries (user API key) |
 | `api.microlink.io` | thumbnails.js | OG image extraction |
 
 ## Service Worker (sw.js)
@@ -53,7 +52,7 @@ Cache versioned as `hn-v1`. Strategies:
 - **Static assets** (`/HN/static/`): cache-first
 - **HN API**: network-first with cache fallback (enables offline)
 - **CDN scripts** (Tailwind, marked.js): stale-while-revalidate
-- **Third-party APIs** (Jina, OpenAI, Microlink): network-only
+- **Third-party APIs** (Jina, Microlink): network-only
 
 Bump `CACHE_VERSION` in sw.js when updating cached assets to force a refresh.
 
