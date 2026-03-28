@@ -176,7 +176,20 @@
   <script src="static/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/HN/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/HN/sw.js').then((reg) => {
+        // Detect SW updates and auto-reload
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                // New SW activated — reload to pick up fresh assets
+                window.location.reload();
+              }
+            });
+          }
+        });
+      }).catch(() => {});
     }
   </script>
 </body>

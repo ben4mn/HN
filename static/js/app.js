@@ -9,8 +9,11 @@ const App = {
     readerScrollY: 0,
     loading: false,
     initialized: false,
-    view: 'feed' // 'feed' | 'comments' | 'reader'
+    view: 'feed', // 'feed' | 'comments' | 'reader'
+    _lastVisible: Date.now()
   },
+
+  REFRESH_AFTER_MS: 2 * 60 * 1000, // 2 minutes
 
   init() {
     this.initDarkMode();
@@ -21,6 +24,21 @@ const App = {
     this.bindEvents();
     this.handleRoute();
     window.addEventListener('hashchange', () => this.handleRoute());
+    this._initVisibilityRefresh();
+  },
+
+  // --- Visibility-based auto-refresh ---
+  _initVisibilityRefresh() {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        const elapsed = Date.now() - this.state._lastVisible;
+        if (elapsed > this.REFRESH_AFTER_MS && this.state.view === 'feed') {
+          this.refresh();
+        }
+      } else {
+        this.state._lastVisible = Date.now();
+      }
+    });
   },
 
   // --- Read State ---
@@ -135,6 +153,13 @@ const App = {
     HNApi.clearCache();
     this.state.currentPage = 0;
     this.loadFeed();
+
+    // Also trigger SW update check
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg) reg.update();
+      });
+    }
   },
 
   // --- Reader ---

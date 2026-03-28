@@ -1,5 +1,5 @@
 // sw.js - Service Worker for HN Reader PWA
-const CACHE_VERSION = 'hn-v11';
+const CACHE_VERSION = 'hn-v12';
 const PRECACHE_URLS = [
   '/HN/',
   '/HN/index.html',
@@ -47,16 +47,17 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Static assets: cache-first
-  if (url.pathname.startsWith('/HN/static/')) {
+  // Static assets + app shell: stale-while-revalidate
+  if (url.pathname.startsWith('/HN/static/') || url.pathname === '/HN/' || url.pathname === '/HN/index.html') {
     event.respondWith(
-      caches.match(event.request).then((cached) =>
-        cached || fetch(event.request).then((res) => {
+      caches.match(event.request).then((cached) => {
+        const fetchPromise = fetch(event.request).then((res) => {
           const clone = res.clone();
           caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, clone));
           return res;
-        })
-      )
+        }).catch(() => cached);
+        return cached || fetchPromise;
+      })
     );
     return;
   }
