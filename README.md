@@ -11,7 +11,8 @@ A fast, readable Hacker News client. Articles and comments side by side on a des
 - **Comments** — whole tree in one request, tap-to-collapse with counts, OP badges, collapse/expand all, "next top-level comment" jump on mobile, collapse state remembered per story.
 - **Layouts** — three panes (feed | article | comments) above 1180px, two panes above 768px, single stack with a bottom tab bar below that.
 - **PWA** — versioned shell precache, offline reading of anything already fetched, update toast, edge-swipe back, pull to refresh, safe-area aware, branded maskable icons.
-- **Keyboard** — `j`/`k` move, `↵` open, `c` comments, `o` original, `s` save, `/` search, `r` refresh, `a` toggle pane, `n` next root comment, `1`–`6` feeds.
+- **Desktop columns** — drag the dividers to resize (double-click resets), swap article and comments with the ⇄ button or `x`.
+- **Keyboard** — `j`/`k` move, `↵` open, `c` comments, `o` original, `s` save, `/` search, `r` refresh, `a` toggle pane, `x` swap panes, `n` next root comment, `1`–`6` feeds.
 
 ## Stack
 

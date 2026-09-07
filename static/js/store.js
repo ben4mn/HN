@@ -98,6 +98,14 @@ const Store = {
     } catch { /* ignore */ }
   },
 
+  // ---- desktop column layout
+  get sidebar() { const v = Number(this._get('hn_sidebar', 0)); return v > 0 ? v : null; },
+  set sidebar(v) { this._set('hn_sidebar', v ? Math.round(v) : 0); },
+  get split() { const v = Number(this._get('hn_split', 0)); return v > 0 ? v : null; },
+  set split(v) { this._set('hn_split', v ? Math.round(v) : 0); },
+  get swapped() { return this._get('hn_swap', false) === true; },
+  set swapped(v) { this._set('hn_swap', !!v); },
+
   // ---- last seen feed (for start_url landing)
   get lastFeed() {
     return this._get('hn_feed', 'top');

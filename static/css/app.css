@@ -154,8 +154,8 @@ kbd {
   z-index: 1;
   height: 100%;
   display: grid;
-  grid-template-rows: 1fr auto;
-  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* ---------- Feed pane ---------- */
@@ -245,6 +245,7 @@ kbd {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--tabbar-h) + var(--sab));
 }
 .feed-status {
   padding: 10px 14px 4px; font-size: 12px; color: var(--ink-3);
@@ -382,6 +383,9 @@ kbd {
 
 /* ---------- Mobile tab bar ---------- */
 .tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 15;
   display: flex;
   height: calc(var(--tabbar-h) + var(--sab));
   padding: 0 var(--sar) var(--sab) var(--sal);
@@ -406,6 +410,7 @@ kbd {
   position: fixed;
   inset: 0;
   z-index: 20;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--paper);
@@ -439,7 +444,9 @@ kbd {
 .font-ctl { display: none; }
 .detail[data-pane="article"] .font-ctl { display: flex; }
 
-.detail-body { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.detail-body { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.col-resizer { display: none; }
+#btn-swap { display: none; }
 .pane { position: relative; min-height: 0; min-width: 0; overflow: hidden; display: none; }
 .detail[data-pane="article"] .pane-article { display: block; }
 .detail[data-pane="comments"] .pane-comments { display: block; }
@@ -654,9 +661,26 @@ body.detail-open .toast { bottom: calc(var(--sab) + 18px); }
    Two-pane (tablet / small desktop)
    ============================================================ */
 @media (min-width: 768px) {
-  .app { grid-template-columns: var(--sidebar) minmax(0, 1fr); grid-template-rows: 1fr; }
+  .app { grid-template-columns: var(--sidebar) 7px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .tabbar { display: none; }
-  .feed { border-right: 1px solid var(--line); }
+  .feed-scroll { padding-bottom: 0; }
+  .col-resizer[data-resize="sidebar"] { display: block; }
+  .col-resizer {
+    position: relative; cursor: col-resize; z-index: 5; touch-action: none;
+    background: var(--paper);
+  }
+  .col-resizer::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--line);
+    transition: background 0.15s, width 0.15s, left 0.15s;
+  }
+  .col-resizer::after {
+    content: ''; position: absolute; top: 50%; left: 1px; width: 5px; height: 36px; margin-top: -18px; border-radius: 3px;
+    background: var(--line-strong); opacity: 0; transition: opacity 0.15s;
+  }
+  .col-resizer:hover::before, .col-resizer.active::before { background: var(--accent); width: 3px; left: 2px; }
+  .col-resizer:hover::after, .col-resizer.active::after { opacity: 1; }
+  body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+  body.resizing .pane-scroll, body.resizing .feed-scroll { pointer-events: none; }
   .feed-tabs { display: flex; }
   .feed-head { padding-left: 16px; }
   .brand-mark { width: 26px; height: 26px; }
@@ -695,9 +719,14 @@ body.detail-open .toast { bottom: calc(var(--sab) + 18px); }
   :root { --sidebar: 380px; }
   .seg { display: none; }
   .detail-head { justify-content: flex-end; }
-  .detail-body { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); }
+  .detail-body { grid-template-columns: min(var(--split, 53%), calc(100% - 327px)) 7px minmax(0, 1fr); }
   .detail .pane { display: block !important; }
-  .pane-comments { border-left: 1px solid var(--line); background: var(--paper); }
+  .col-resizer[data-resize="split"] { display: block; background: var(--paper-2); }
+  .pane-article { order: 1; } .col-resizer[data-resize="split"] { order: 2; } .pane-comments { order: 3; }
+  .detail-body.swapped .pane-comments { order: 1; } .detail-body.swapped .pane-article { order: 3; }
+  .pane-comments { background: var(--paper); }
+  #btn-swap { display: inline-flex; }
+  #btn-swap.on svg { stroke: var(--accent); }
   .detail:not([data-id]) .pane { display: none !important; }
   .font-ctl { display: flex; }
   .fab { display: none; }
@@ -705,5 +734,4 @@ body.detail-open .toast { bottom: calc(var(--sab) + 18px); }
 }
 @media (min-width: 1500px) {
   :root { --sidebar: 420px; }
-  .detail-body { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
 }

@@ -92,6 +92,8 @@
       </div>
     </aside>
 
+    <div class="col-resizer" data-resize="sidebar" role="separator" aria-orientation="vertical" aria-label="Resize feed column" title="Drag to resize · double-click to reset"></div>
+
     <!-- ===== Detail pane ===== -->
     <section id="detail" class="detail" aria-hidden="true">
       <header class="detail-head">
@@ -107,6 +109,9 @@
             <button class="icon-btn small" data-font="-1" aria-label="Smaller text">A<sup>−</sup></button>
             <button class="icon-btn small" data-font="1" aria-label="Larger text">A<sup>+</sup></button>
           </div>
+          <button class="icon-btn" id="btn-swap" aria-label="Swap article and comments" title="Swap article and comments (x)">
+            <svg viewBox="0 0 24 24"><path d="M4 8h13"/><path d="M14 4l4 4-4 4"/><path d="M20 16H7"/><path d="M10 12l-4 4 4 4"/></svg>
+          </button>
           <button class="icon-btn" id="btn-save" aria-label="Save story" title="Save (s)">
             <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
           </button>
@@ -124,6 +129,7 @@
           <div class="read-progress" id="read-progress"></div>
           <div class="pane-scroll" id="article-scroll"></div>
         </article>
+        <div class="col-resizer" data-resize="split" role="separator" aria-orientation="vertical" aria-label="Resize article and comments" title="Drag to resize · double-click to reset"></div>
         <section class="pane pane-comments" id="pane-comments">
           <div class="pane-scroll" id="comments-scroll"></div>
           <button class="fab" id="btn-jump" aria-label="Next top-level comment" hidden>

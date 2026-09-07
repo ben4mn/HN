@@ -26,6 +26,7 @@ const App = {
     Thread.init();
     Gestures.init();
     this._initLayout();
+    this._initColumns();
     this._initTheme();
     this._bind();
     this._initServiceWorker();
@@ -54,11 +55,78 @@ const App = {
       this._syncDetail();
       Thread._updateJump();
     };
+    this._applyLayout = apply;
     this._mq.two.addEventListener('change', apply);
     this._mq.three.addEventListener('change', apply);
     // Some embedded browsers fire resize without matchMedia change events.
     window.addEventListener('resize', debounce(apply, 80));
     apply();
+  },
+
+  // ---------------- Desktop columns: drag to resize, swap panes ----------------
+
+  _initColumns() {
+    const root = document.documentElement.style;
+    if (Store.sidebar) root.setProperty('--sidebar', `${Store.sidebar}px`);
+    if (Store.split) root.setProperty('--split', `${Store.split}px`);
+    $('#detail-body').classList.toggle('swapped', Store.swapped);
+    $('#btn-swap').classList.toggle('on', Store.swapped);
+    $('#btn-swap').addEventListener('click', () => this.toggleSwap());
+
+    for (const handle of $$('.col-resizer')) {
+      const which = handle.dataset.resize;
+      const container = () => (which === 'sidebar' ? $('#app') : $('#detail-body'));
+      const limits = () => {
+        const w = container().getBoundingClientRect().width;
+        return which === 'sidebar' ? [300, Math.min(700, w - 480)] : [320, w - 327];
+      };
+      let startX = 0;
+      let startW = 0;
+      let dragging = false;
+      const move = (e) => {
+        if (!dragging) return;
+        const [min, max] = limits();
+        const w = clamp(startW + (e.clientX - startX), min, max);
+        root.setProperty(which === 'sidebar' ? '--sidebar' : '--split', `${w}px`);
+      };
+      const end = () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('active');
+        document.body.classList.remove('resizing');
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', end);
+        window.removeEventListener('pointercancel', end);
+        const w = handle.getBoundingClientRect().left - container().getBoundingClientRect().left;
+        if (which === 'sidebar') Store.sidebar = w; else Store.split = w;
+        Thread._measureRoots();
+      };
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        try { handle.setPointerCapture(e.pointerId); } catch { /* synthetic or unsupported */ }
+        dragging = true;
+        startX = e.clientX;
+        startW = handle.getBoundingClientRect().left - container().getBoundingClientRect().left;
+        handle.classList.add('active');
+        document.body.classList.add('resizing');
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+      });
+      handle.addEventListener('dblclick', () => {
+        root.removeProperty(which === 'sidebar' ? '--sidebar' : '--split');
+        if (which === 'sidebar') Store.sidebar = 0; else Store.split = 0;
+      });
+    }
+  },
+
+  toggleSwap() {
+    const on = !Store.swapped;
+    Store.swapped = on;
+    $('#detail-body').classList.toggle('swapped', on);
+    $('#btn-swap').classList.toggle('on', on);
+    this.toast(on ? 'Comments on the left' : 'Article on the left');
   },
 
   // ---------------- Theme ----------------
@@ -131,6 +199,7 @@ const App = {
   },
 
   handleRoute() {
+    this._applyLayout();
     this._trackDepth();
     const route = this.parseHash();
     const prev = this.state.route;
@@ -487,6 +556,7 @@ const App = {
       case 's': if (s) { e.preventDefault(); this.toggleSave(s); } break;
       case '/': e.preventDefault(); this._openSearchUi(this.state.feed === 'search' ? this.state.query : ''); $('#search-input').select(); break;
       case 'r': e.preventDefault(); this.refresh(); break;
+      case 'x': if (this.state.layout === 'three') { e.preventDefault(); this.toggleSwap(); } break;
       case 'a': if (this.state.detailOpen) { e.preventDefault(); this.setPane(this.state.pane === 'article' ? 'comments' : 'article', { navigate: true }); } break;
       case 'n': if (this.state.detailOpen) { e.preventDefault(); Thread.jumpNext(); } break;
       case 'Escape': if (this.state.detailOpen && this.state.layout === 'mobile') this.goBack(); else if (!$('#feed-search').hidden) { this._closeSearchUi(); if (this.state.feed === 'search') this.navigate(`#/${Store.lastFeed}`); } break;
