@@ -52,7 +52,7 @@ Layout: each pane is its own scroll container, so feed scroll position survives 
 
 - DOM helpers `$`/`$$` from utils.js; render lists as HTML strings and use event delegation (thread trees can be 1000+ nodes).
 - All untrusted HTML (comments, articles) goes through `sanitizeHtml` in utils.js even though the server already sanitizes.
-- Styling is hand-written CSS in `static/css/app.css` with design tokens in `:root`; light and dark both defined, dark via `prefers-color-scheme` or `html[data-theme]`. Serif (Newsreader) for content, mono (IBM Plex Mono) for metadata and controls. Keep the single orange accent sparse.
+- Styling is hand-written CSS in `static/css/app.css` with design tokens in `:root`; light and dark both defined, dark via `prefers-color-scheme` or `html[data-theme]`. Figtree (variable sans) everywhere; system monospace only inside code. Keep the single orange accent sparse.
 - Icons are generated from `static/icons/icon.svg`; the PNGs were rasterized with headless Chrome (maskable variants scale the mark into the 80% safe zone).
 
 ## Deploy

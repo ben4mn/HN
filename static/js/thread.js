@@ -15,8 +15,11 @@ const Thread = {
     this.el.addEventListener('click', (e) => {
       const rail = e.target.closest('.c-rail');
       const head = e.target.closest('.c-head');
-      if (rail || head) {
-        if (e.target.closest('a')) return;
+      // On touch screens a tap on the comment text collapses it too (links still open).
+      const body = isTouch() ? e.target.closest('.c-body') : null;
+      if (rail || head || body) {
+        if (e.target.closest('a, pre, code')) return;
+        if (body && String(window.getSelection && window.getSelection()).length) return;
         const li = e.target.closest('.c');
         if (li) this.toggle(Number(li.dataset.id), li);
         return;

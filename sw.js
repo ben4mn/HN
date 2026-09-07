@@ -1,7 +1,7 @@
 // sw.js - HN Reader service worker
 // Shell is precached and versioned; API responses are cached at runtime for offline reading.
 
-const VERSION = '2.0.0';
+const VERSION = '2.0.1';
 const SHELL = `hn-shell-${VERSION}`;
 const RUNTIME = 'hn-runtime';
 const RUNTIME_MAX = 400;
@@ -21,11 +21,8 @@ const SHELL_FILES = [
   './static/js/gestures.js',
   './static/js/app.js',
   './static/vendor/marked.min.js',
-  './static/fonts/Newsreader-normal-400-700.woff2',
-  './static/fonts/Newsreader-italic-400-700.woff2',
-  './static/fonts/IBMPlexMono-normal-400.woff2',
-  './static/fonts/IBMPlexMono-normal-500.woff2',
-  './static/fonts/IBMPlexMono-normal-600.woff2',
+  './static/fonts/Figtree-normal.woff2',
+  './static/fonts/Figtree-italic.woff2',
   './static/icons/icon.svg',
   './static/icons/icon-192.png',
   './static/icons/icon-512.png',

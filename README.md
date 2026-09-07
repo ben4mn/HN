@@ -16,7 +16,7 @@ A fast, readable Hacker News client. Articles and comments side by side on a des
 ## Stack
 
 ```
-index.html + static/            vanilla JS, no build step, self-hosted fonts
+index.html + static/            vanilla JS, no build step, self-hosted Figtree
 server/                         Node 22 + Express: feeds, comment trees, Readability, page metadata
 Dockerfile / docker-compose.yml container on the Debian box, host port 3026
 ```
