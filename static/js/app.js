@@ -445,6 +445,25 @@ const App = {
     // Keyboard
     document.addEventListener('keydown', (e) => this._onKey(e));
 
+    // iOS scrolls the document to reveal a focused input and can leave it shifted after the
+    // keyboard closes (header under the status bar, tab bar floating). Snap it back.
+    const resetViewport = () => {
+      if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }
+    };
+    const input = $('#search-input');
+    input.addEventListener('blur', () => { resetViewport(); setTimeout(resetViewport, 60); setTimeout(resetViewport, 350); });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', debounce(() => {
+        if (document.activeElement === input) return;
+        resetViewport();
+      }, 80));
+    }
+    window.addEventListener('scroll', () => { if (document.activeElement !== input) resetViewport(); }, { passive: true });
+
     // Online/offline
     window.addEventListener('online', () => { Feed.setOffline(false); if (!Feed.stories.length) this.refresh({ silent: true }); });
     window.addEventListener('offline', () => Feed.setOffline(true));

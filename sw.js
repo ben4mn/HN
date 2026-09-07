@@ -1,7 +1,7 @@
 // sw.js - HN Reader service worker
 // Shell is precached and versioned; API responses are cached at runtime for offline reading.
 
-const VERSION = '2.0.2';
+const VERSION = '2.0.3';
 const SHELL = `hn-shell-${VERSION}`;
 const RUNTIME = 'hn-runtime';
 const RUNTIME_MAX = 400;
