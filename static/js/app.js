@@ -492,6 +492,7 @@ const App = {
     $('#feed-search').addEventListener('submit', (e) => {
       e.preventDefault();
       const q = $('#search-input').value.trim();
+      if (q === ':debug') { this._debugOverlay(); $('#search-input').value = ''; return; }
       if (q) this.navigate(`#/search/${encodeURIComponent(q)}`);
       $('#search-input').blur();
     });
@@ -516,22 +517,23 @@ const App = {
 
     // iOS scrolls the document to reveal a focused input and can leave it shifted after the
     // keyboard closes (header under the status bar, tab bar floating). Snap it back.
-    const resetViewport = () => {
-      if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-      }
+    const vv = window.visualViewport;
+    const shifted = () => window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || (vv && (vv.offsetTop || vv.pageTop));
+    const resetViewport = (force = false) => {
+      if (!force && !shifted()) return;
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
     };
     const input = $('#search-input');
-    input.addEventListener('blur', () => { resetViewport(); setTimeout(resetViewport, 60); setTimeout(resetViewport, 350); });
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', debounce(() => {
-        if (document.activeElement === input) return;
-        resetViewport();
-      }, 80));
+    input.addEventListener('blur', () => { resetViewport(true); setTimeout(() => resetViewport(true), 80); setTimeout(() => resetViewport(true), 400); });
+    if (vv) {
+      const onVv = debounce(() => { if (document.activeElement !== input) resetViewport(); }, 80);
+      vv.addEventListener('resize', onVv);
+      vv.addEventListener('scroll', onVv);
     }
     window.addEventListener('scroll', () => { if (document.activeElement !== input) resetViewport(); }, { passive: true });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(() => resetViewport(), 50); });
 
     // Online/offline
     window.addEventListener('online', () => { Feed.setOffline(false); if (!Feed.stories.length) this.refresh({ silent: true }); });
@@ -581,6 +583,36 @@ const App = {
         this.refresh({ silent: true });
       }
     });
+  },
+
+  // ---------------- Diagnostics (type ":debug" in search) ----------------
+
+  _debugOverlay() {
+    let el = $('#hn-debug');
+    if (el) { el.remove(); return; }
+    el = document.createElement('pre');
+    el.id = 'hn-debug';
+    el.style.cssText = 'position:fixed;left:8px;top:80px;z-index:999;background:rgba(0,0,0,.85);color:#0f0;font:11px/1.4 monospace;padding:8px;border-radius:8px;max-width:90vw;white-space:pre-wrap;pointer-events:none';
+    document.body.appendChild(el);
+    const r = (sel) => { const e = $(sel); if (!e) return 'n/a'; const b = e.getBoundingClientRect(); return `${Math.round(b.top)}..${Math.round(b.bottom)} h${Math.round(b.height)}`; };
+    const tick = () => {
+      const vv = window.visualViewport;
+      const tb = $('#tabbar');
+      el.textContent = [
+        `standalone ${isStandalone()}  ua ${navigator.userAgent.match(/OS \d+_\d+/)?.[0] || ''}`,
+        `inner ${innerWidth}x${innerHeight}  outer ${outerWidth}x${outerHeight}`,
+        `screen ${screen.width}x${screen.height}  avail ${screen.availWidth}x${screen.availHeight}`,
+        `vv ${vv ? `${Math.round(vv.width)}x${Math.round(vv.height)} off ${Math.round(vv.offsetTop)} page ${Math.round(vv.pageTop)} scale ${vv.scale}` : 'none'}`,
+        `scrollY ${scrollY}  docEl ${document.documentElement.clientHeight}/${document.documentElement.scrollHeight}`,
+        `html ${r('html')}  body ${r('body')}  app ${r('#app')}`,
+        `feed ${r('#feed')}  feedScroll ${r('#feed-scroll')}`,
+        `tabbar ${r('#tabbar')}  pos ${getComputedStyle(tb).position} padB ${getComputedStyle(tb).paddingBottom} bottom ${getComputedStyle(tb).bottom}`,
+        `sab ${getComputedStyle(document.documentElement).getPropertyValue('--sab')}  sat ${getComputedStyle(document.documentElement).getPropertyValue('--sat')}`,
+        `layout ${this.state.layout}  detail ${this.state.detailOpen}`
+      ].join('\n');
+    };
+    tick();
+    el._t = setInterval(tick, 500);
   },
 
   // ---------------- Toast ----------------
