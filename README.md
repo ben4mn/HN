@@ -1,53 +1,43 @@
-# HN Reader
+# HN — Hacker News reader
 
-A fast, clean Hacker News client built as a static PWA. No frameworks, no build step, no nonsense — just vanilla JS and Tailwind CDN.
+A fast, readable Hacker News client. Articles and comments side by side on a desktop, a native-feeling stacked app on a phone. Installable as a PWA.
 
-**[Try it live](https://ben4mn.github.io/HN/)**
+**Live:** [hn.4mn.org](https://hn.4mn.org) · static fallback at [ben4mn.github.io/HN](https://ben4mn.github.io/HN/)
 
-## Features
+## What it does
 
-- **Three feeds** — Top, New, and Best stories with pull-to-refresh
-- **Built-in reader** — Read articles without leaving the app (via Jina Reader)
-- **AI summaries** — Optional GPT-4o-mini summaries (bring your own API key)
-- **Threaded comments** — Collapsible comment trees, 3 levels deep
-- **Thumbnails** — OG image previews pulled from Microlink
-- **Dark mode** — Because obviously
-- **Offline support** — Service worker caches stories for reading on the go
-- **Installable** — Add to home screen on iOS/Android for a native feel
+- **Feeds** — Top, New, Best, Ask, Show, Jobs, plus Saved and full-text search (Algolia).
+- **Reader** — server-side Readability extraction with a Jina fallback, TL;DR (client-side TextRank), reading time, reading progress, adjustable type size.
+- **Comments** — whole tree in one request, tap-to-collapse with counts, OP badges, collapse/expand all, "next top-level comment" jump on mobile, collapse state remembered per story.
+- **Layouts** — three panes (feed | article | comments) above 1180px, two panes above 768px, single stack with a bottom tab bar below that.
+- **PWA** — versioned shell precache, offline reading of anything already fetched, update toast, edge-swipe back, pull to refresh, safe-area aware, branded maskable icons.
+- **Keyboard** — `j`/`k` move, `↵` open, `c` comments, `o` original, `s` save, `/` search, `r` refresh, `a` toggle pane, `n` next root comment, `1`–`6` feeds.
 
 ## Stack
 
 ```
-HTML + Tailwind CDN + vanilla JS
-├── No build tools
-├── No package.json
-├── No node_modules
-└── Just vibes
+index.html + static/            vanilla JS, no build step, self-hosted fonts
+server/                         Node 22 + Express: feeds, comment trees, Readability, page metadata
+Dockerfile / docker-compose.yml container on the Debian box, host port 3026
 ```
+
+The client prefers the bundled backend (`/api/*`). When it is hosted as plain static files (GitHub Pages), it detects the missing API and talks to Firebase, Algolia, and Jina directly, with thumbnails and blurbs disabled.
 
 ## Run locally
 
 ```bash
-# Serve from parent directory (base path is /HN/)
-python3 -m http.server 8080 --directory ..
-# Open http://localhost:8080/HN/
+cd server && npm install && cd ..
+PORT=3099 node server/index.js      # http://localhost:3099
 ```
 
-## Architecture
+The service worker is skipped on `localhost` so edits show up on reload (`?sw=1` opts back in).
 
-Singleton module pattern — each JS file exposes a global object. Load order matters:
+## Deploy
 
+```bash
+ssh debian
+cd ~/HN && git pull
+APP_VERSION=$(git rev-parse --short HEAD) docker compose up -d --build
 ```
-utils.js → api.js → thumbnails.js → summaries.js → settings.js → reader.js → stories.js → comments.js → app.js
-```
 
-`App` handles hash-based routing between three views: Feed, Reader, and Comments. Everything caches aggressively in sessionStorage with TTLs.
-
-## APIs
-
-| Service | Purpose |
-|---------|---------|
-| HN Firebase API | Stories and comments |
-| Jina Reader | Article extraction |
-| OpenAI | AI summaries (optional, user API key) |
-| Microlink | Thumbnail previews |
+`APP_VERSION` is stamped into `sw.js` at build time so every deploy invalidates the cached shell on clients.

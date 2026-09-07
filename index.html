@@ -2,195 +2,164 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#ff6600">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HN — Hacker News reader</title>
+  <meta name="description" content="A fast, readable Hacker News client. Articles and comments side by side on desktop, a native-feeling stack on your phone.">
+  <meta name="theme-color" content="#f6f1e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HN">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>HN Reader</title>
-  <base href="/HN/">
-  <link rel="icon" href="static/favicon.ico">
-  <link rel="apple-touch-icon" href="static/icon-192.png">
-  <link rel="manifest" href="static/manifest.json">
-  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="static/icons/favicon.ico" sizes="16x16 32x32 64x64">
+  <link rel="icon" type="image/svg+xml" href="static/icons/icon.svg">
+  <link rel="apple-touch-icon" href="static/icons/apple-touch-icon.png">
+  <link rel="preload" href="static/fonts/Newsreader-normal-400-700.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="static/fonts/IBMPlexMono-normal-500.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="static/css/app.css">
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: { hn: '#ff6600' }
-        }
-      }
-    }
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var t = (localStorage.getItem('hn_theme') || '').replace(/"/g, '');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
   </script>
-  <link rel="stylesheet" href="static/css/style.css">
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen" style="overscroll-behavior-y:contain">
+<body>
+  <div id="app" class="app">
 
-  <!-- Nav Bar -->
-  <nav class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 safe-top">
-    <div class="max-w-2xl mx-auto px-3 py-2 flex items-center gap-3">
-      <!-- Logo -->
-      <div class="flex items-center gap-1.5 shrink-0">
-        <div class="w-6 h-6 bg-hn rounded flex items-center justify-center">
-          <span class="text-white font-bold text-xs">Y</span>
-        </div>
-        <span class="font-semibold text-sm hidden sm:inline">HN</span>
-      </div>
-
-      <!-- Tabs -->
-      <div class="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5" id="nav-tabs">
-        <button data-tab="top" class="tab-btn px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-target">Top</button>
-        <button data-tab="new" class="tab-btn px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-target">New</button>
-        <button data-tab="best" class="tab-btn px-3 py-1.5 text-sm font-medium rounded-md transition-colors touch-target">Best</button>
-      </div>
-
-      <div class="flex-1"></div>
-
-      <!-- Actions -->
-      <button id="btn-settings" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Settings">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-      </button>
-      <button id="btn-refresh" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Refresh">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-      </button>
-      <button id="btn-darkmode" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Toggle dark mode">
-        <svg class="w-5 h-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-        </svg>
-        <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-        </svg>
-      </button>
-    </div>
-  </nav>
-
-  <!-- Main Content -->
-  <main class="max-w-2xl mx-auto relative">
-    <!-- Pull to Refresh Indicator -->
-    <div id="ptr-container" class="ptr-container">
-      <div class="ptr-glow"></div>
-      <div class="ptr-spinner">
-        <svg class="ptr-icon" viewBox="0 0 24 24" fill="none">
-          <path class="ptr-arrow" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-5 5m5-5l5 5"/>
-        </svg>
-        <svg class="ptr-loader" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="56.5" stroke-dashoffset="40"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Story Feed View -->
-    <div id="view-feed" class="pb-20">
-      <div id="story-list"></div>
-      <div id="load-more-wrap" class="p-4 hidden">
-        <button id="btn-load-more" class="w-full py-3 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors touch-target">
-          Load More
-        </button>
-      </div>
-    </div>
-
-    <!-- Reader View (slides over feed) -->
-    <div id="view-reader" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 overflow-y-auto hidden">
-      <div class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 safe-top">
-        <div class="max-w-2xl mx-auto px-3 py-2 flex items-center gap-3">
-          <button id="btn-reader-back" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Back">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
+    <!-- ===== Feed pane ===== -->
+    <aside id="feed" class="feed">
+      <header class="feed-head">
+        <a class="brand" href="#/top" aria-label="HN home">
+          <img class="brand-mark" src="static/icons/icon.svg" alt="" width="26" height="26">
+          <span class="brand-word">HN</span>
+          <span class="brand-tag">reader</span>
+        </a>
+        <div class="head-actions">
+          <button class="icon-btn" id="btn-search" aria-label="Search" title="Search (/)">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           </button>
-          <span class="text-sm font-medium truncate">Reader</span>
-        </div>
-      </div>
-      <div id="reader-content" class="max-w-2xl mx-auto pb-20"></div>
-    </div>
-
-    <!-- Comment View (slides over feed) -->
-    <div id="view-comments" class="fixed inset-0 z-50 bg-gray-50 dark:bg-gray-950 overflow-y-auto hidden">
-      <!-- Comment nav -->
-      <div class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 safe-top">
-        <div class="max-w-2xl mx-auto px-3 py-2 flex items-center gap-3">
-          <button id="btn-back" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-target" aria-label="Back">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
+          <button class="icon-btn" id="btn-saved" aria-label="Saved stories" title="Saved">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
           </button>
-          <span class="text-sm font-medium truncate">Comments</span>
+          <button class="icon-btn" id="btn-theme" aria-label="Toggle theme" title="Theme">
+            <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+          </button>
+          <button class="icon-btn" id="btn-refresh" aria-label="Refresh" title="Refresh (r)">
+            <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 21v-5h-5"/></svg>
+          </button>
         </div>
-      </div>
-      <!-- Comment header + tree -->
-      <div id="comment-content" class="pb-20"></div>
-    </div>
-  </main>
+      </header>
 
-  <!-- Settings Modal -->
-  <div id="settings-overlay" class="settings-overlay fixed inset-0 z-[60] bg-black/40 hidden"></div>
-  <div id="settings-modal" class="settings-modal fixed z-[61] hidden">
-    <div class="bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold">Settings</h2>
-        <button id="settings-close" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Close">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+      <nav class="feed-tabs" id="feed-tabs" aria-label="Feeds">
+        <a class="tab" data-feed="top" href="#/top">Top</a>
+        <a class="tab" data-feed="new" href="#/new">New</a>
+        <a class="tab" data-feed="best" href="#/best">Best</a>
+        <a class="tab" data-feed="ask" href="#/ask">Ask</a>
+        <a class="tab" data-feed="show" href="#/show">Show</a>
+        <a class="tab" data-feed="jobs" href="#/jobs">Jobs</a>
+        <a class="tab" data-feed="saved" href="#/saved">Saved</a>
+      </nav>
+
+      <form class="feed-search" id="feed-search" hidden role="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="search-input" type="search" placeholder="Search stories…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+        <button type="button" class="icon-btn small" id="search-close" aria-label="Close search">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
-      </div>
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <label class="text-sm font-medium" for="settings-toggle">Enable summaries</label>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input id="settings-toggle" type="checkbox" checked class="sr-only peer">
-            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-hn"></div>
-          </label>
+      </form>
+
+      <div class="feed-scroll" id="feed-scroll">
+        <div class="ptr" id="ptr" aria-hidden="true">
+          <div class="ptr-disc"><svg class="ptr-arrow" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span class="ptr-spin"></span></div>
         </div>
-        <button id="settings-save" class="w-full py-2.5 bg-hn text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors">
-          Save
-        </button>
+        <div class="feed-offline" id="feed-offline" hidden>Offline — showing what's cached.</div>
+        <div class="feed-status" id="feed-status" hidden></div>
+        <ol class="stories" id="story-list"></ol>
+        <div class="feed-foot" id="feed-foot" hidden>
+          <button class="btn" id="btn-more">Load more</button>
+        </div>
       </div>
+    </aside>
+
+    <!-- ===== Detail pane ===== -->
+    <section id="detail" class="detail" aria-hidden="true">
+      <header class="detail-head">
+        <button class="icon-btn" id="btn-back" aria-label="Back" title="Back (esc)">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="seg" id="seg" role="tablist">
+          <button class="seg-btn" data-pane="article" role="tab">Article</button>
+          <button class="seg-btn" data-pane="comments" role="tab">Comments <span class="seg-count" id="seg-count"></span></button>
+        </div>
+        <div class="detail-actions">
+          <div class="font-ctl" id="font-ctl">
+            <button class="icon-btn small" data-font="-1" aria-label="Smaller text">A<sup>−</sup></button>
+            <button class="icon-btn small" data-font="1" aria-label="Larger text">A<sup>+</sup></button>
+          </div>
+          <button class="icon-btn" id="btn-save" aria-label="Save story" title="Save (s)">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>
+          </button>
+          <button class="icon-btn" id="btn-share" aria-label="Share" title="Share">
+            <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v8h14v-8"/></svg>
+          </button>
+          <a class="icon-btn" id="btn-open" href="#" target="_blank" rel="noopener" aria-label="Open original" title="Open original (o)">
+            <svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4L10 14"/><path d="M18 13v7H4V6h7"/></svg>
+          </a>
+        </div>
+      </header>
+
+      <div class="detail-body" id="detail-body">
+        <article class="pane pane-article" id="pane-article">
+          <div class="read-progress" id="read-progress"></div>
+          <div class="pane-scroll" id="article-scroll"></div>
+        </article>
+        <section class="pane pane-comments" id="pane-comments">
+          <div class="pane-scroll" id="comments-scroll"></div>
+          <button class="fab" id="btn-jump" aria-label="Next top-level comment" hidden>
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+          </button>
+        </section>
+        <div class="detail-empty" id="detail-empty">
+          <img src="static/icons/icon.svg" alt="" width="56" height="56">
+          <p>Pick a story.</p>
+          <p class="hint"><kbd>j</kbd><kbd>k</kbd> move · <kbd>↵</kbd> open · <kbd>c</kbd> comments · <kbd>o</kbd> original · <kbd>s</kbd> save · <kbd>/</kbd> search</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Mobile tab bar ===== -->
+    <nav class="tabbar" id="tabbar" aria-label="Feeds">
+      <a class="tabbar-btn" data-feed="top" href="#/top"><svg viewBox="0 0 24 24"><path d="M12 4l8 14H4z"/></svg><span>Top</span></a>
+      <a class="tabbar-btn" data-feed="new" href="#/new"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg><span>New</span></a>
+      <a class="tabbar-btn" data-feed="best" href="#/best"><svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>Best</span></a>
+      <a class="tabbar-btn" data-feed="ask" href="#/ask"><svg viewBox="0 0 24 24"><path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4"/><circle cx="12" cy="18" r=".8"/><circle cx="12" cy="12" r="9.5"/></svg><span>Ask</span></a>
+      <a class="tabbar-btn" data-feed="show" href="#/show"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span>Show</span></a>
+    </nav>
+
+    <!-- ===== Toast ===== -->
+    <div class="toast" id="toast" hidden>
+      <span id="toast-msg"></span>
+      <button class="toast-btn" id="toast-btn" hidden></button>
     </div>
   </div>
 
-  <!-- Error toast -->
-  <div id="error-toast" class="fixed bottom-4 left-4 right-4 z-50 hidden">
-    <div class="max-w-md mx-auto bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
-      <span id="error-msg" class="text-sm flex-1"></span>
-      <button id="btn-retry" class="text-sm font-medium underline shrink-0">Retry</button>
-    </div>
-  </div>
-
+  <script src="static/vendor/marked.min.js" defer></script>
   <script src="static/js/utils.js"></script>
-  <script src="static/js/api.js"></script>
-  <script src="static/js/thumbnails.js"></script>
+  <script src="static/js/store.js"></script>
   <script src="static/js/extractive.js"></script>
-  <script src="static/js/summaries.js"></script>
-  <script src="static/js/settings.js"></script>
+  <script src="static/js/api.js"></script>
+  <script src="static/js/feed.js"></script>
   <script src="static/js/reader.js"></script>
-  <script src="static/js/stories.js"></script>
-  <script src="static/js/comments.js"></script>
-  <script src="static/js/pullrefresh.js"></script>
+  <script src="static/js/thread.js"></script>
+  <script src="static/js/gestures.js"></script>
   <script src="static/js/app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/HN/sw.js').then((reg) => {
-        // Detect SW updates and auto-reload
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-                // New SW activated — reload to pick up fresh assets
-                window.location.reload();
-              }
-            });
-          }
-        });
-      }).catch(() => {});
-    }
-  </script>
 </body>
 </html>

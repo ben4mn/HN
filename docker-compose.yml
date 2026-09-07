@@ -1,0 +1,13 @@
+# Production, on the Debian box. Host port 3026 —
+# 3020 deepcut, 3021 nopunt, 3022 bounce, 3023 atlas, 3024 fantasy, 3025 grayduck.
+services:
+  hn:
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    container_name: hn
+    restart: unless-stopped
+    environment:
+      TZ: America/Denver
+    ports: ["3026:3000"]

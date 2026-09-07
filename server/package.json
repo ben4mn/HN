@@ -1,0 +1,20 @@
+{
+  "name": "hn-reader-server",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "dompurify": "^3.2.6",
+    "express": "^4.21.2",
+    "jsdom": "^26.1.0"
+  }
+}

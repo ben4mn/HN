@@ -1,67 +1,64 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
 ## Overview
 
-Static PWA Hacker News reader — no build tools, no package.json. All JS loaded via `<script>` tags, styling via Tailwind CDN. Deployed to GitHub Pages at `https://ben4mn.github.io/HN/`.
+Hacker News reader PWA. Vanilla JS front end with no build step, plus a small Node/Express backend that does the heavy lifting (feed assembly, full comment trees, Readability extraction, OG metadata). Deployed in Docker on the Debian box at `hn.4mn.org` (host port 3026). Also served as pure static files on GitHub Pages, where the client falls back to public APIs.
 
 ## Development
 
 ```bash
-# Serve locally (must serve from parent directory so /HN/ path works)
-python3 -m http.server 8080 --directory /Users/ben/Documents/1_Projects
-# Then open http://localhost:8080/HN/
-
-# Or use npx serve from the parent directory
-cd .. && npx serve -l 8080
+cd server && npm install            # once
+PORT=3099 node server/index.js      # serves the static app + /api on :3099
 ```
 
-All paths assume `/HN/` base (set via `<base href="/HN/">` in index.html). The service worker registers at `/HN/sw.js`.
+- Static files live at the repo root (`index.html`, `sw.js`, `manifest.webmanifest`, `static/`). All URLs are relative so the app works at `/` and at `/HN/`.
+- The service worker is not registered on `localhost` (append `?sw=1` to test it). When testing SW changes, unregister and clear caches between reloads.
+- No test suite. Verify in the browser at three widths: <768 (mobile), 768–1179 (two-pane), ≥1180 (three-pane).
 
 ## Architecture
 
-**Singleton module pattern** — each JS file exposes a global object (e.g., `App`, `HNApi`, `Stories`, `Reader`). No module bundler; load order in `index.html` matters:
+Singleton modules, loaded in order from `index.html`:
 
 ```
-utils.js → api.js → thumbnails.js → summaries.js → settings.js → reader.js → stories.js → comments.js → app.js
+utils.js → store.js → extractive.js → api.js → feed.js → reader.js → thread.js → gestures.js → app.js
 ```
 
-**`App` (app.js)** orchestrates everything: hash-based routing, view transitions, state management. Three overlay views slide in/out:
-- Feed (`#/top`, `#/new`, `#/best`) — rendered by `Stories`
-- Reader (`#/read/{id}`) — rendered by `Reader`
-- Comments (`#/item/{id}`) — rendered by `Comments`
+- **`App` (app.js)** — hash router, layout detection (`body[data-layout]`), detail pane open/close, history depth tracking for a correct Back button, keyboard shortcuts, theme, toasts, SW update prompt.
+- **`Feed` (feed.js)** — story list rendering, keyboard cursor, lazy thumbnails/blurbs via `/api/meta`.
+- **`Reader` (reader.js)** — article pane: `/api/extract` → sanitized HTML, leading site-chrome stripping, TL;DR from prose text, reading progress.
+- **`Thread` (thread.js)** — comments pane: renders the whole tree as one HTML string, delegated click handling, collapse state in `sessionStorage`, jump-to-next-root.
+- **`API` (api.js)** — server-first with in-memory caching; `Direct` fallback hits Firebase/Algolia/Jina when `/api` is absent (404 or network error flips `API.mode`).
+- **`Store` (store.js)** — localStorage prefs: theme, font scale, read ids, saved stories, last feed.
+- **`Gestures` (gestures.js)** — pull-to-refresh on the feed scroller, edge-swipe back on the mobile overlay.
 
-**`HNApi` (api.js)** wraps the Firebase HN API with sessionStorage caching (2min for lists, 5min for items). Fetches comments recursively up to 3 levels deep with max 15 concurrent requests.
+Routes: `#/top|new|best|ask|show|jobs|saved`, `#/search/<q>`, `#/read/<id>` (article pane), `#/item/<id>` (comments pane). Pane switches use `location.replace` so Back returns to the feed.
 
-**`Reader` (reader.js)** fetches articles via Jina Reader API (`r.jina.ai/{url}` with `Accept: text/markdown`), strips Jina metadata preamble, renders markdown with `marked.js`. Caches extracted articles in sessionStorage (30min TTL).
+Layout: each pane is its own scroll container, so feed scroll position survives opening a story without any save/restore code. On mobile the detail section is a fixed overlay that slides in; on desktop it sits in the grid.
 
-**`Summaries` (summaries.js)** extracts article text via Jina Reader (plain text mode), then generates extractive summaries client-side using TextRank (`extractive.js`). Falls back to title + top 5 comments if article extraction fails. No API keys required — fully offline-capable once text is extracted.
+## Server (`server/`)
 
-## External APIs
+- `index.js` — Express routes: `/api/feed/:type`, `/api/item/:id`, `/api/search`, `/api/extract`, `/api/meta`, `/api/health`; static serving with `no-cache` for HTML/JS/CSS and immutable for fonts/icons.
+- `hn.js` — Firebase for feed ids/items; Algolia `items/:id` for full trees with a Firebase recursive fallback when Algolia lags (new stories).
+- `extract.js` — fetch with a browser UA (private-network URLs blocked), Readability + DOMPurify, Jina fallback for bot walls, `getMeta` for OG image/description.
+- `cache.js` — TTL + LRU cache with in-flight dedupe. Everything is in memory; a restart just re-warms.
 
-| Service | Used By | Purpose |
-|---------|---------|---------|
-| `hacker-news.firebaseio.com/v0` | api.js | Story data and comments |
-| `r.jina.ai/{url}` | reader.js (markdown), summaries.js (plain text) | Article extraction |
-| `api.microlink.io` | thumbnails.js | OG image extraction |
+## Service worker (`sw.js`)
 
-## Service Worker (sw.js)
-
-Cache versioned as `hn-v1`. Strategies:
-- **Static assets** (`/HN/static/`): cache-first
-- **HN API**: network-first with cache fallback (enables offline)
-- **CDN scripts** (Tailwind, marked.js): stale-while-revalidate
-- **Third-party APIs** (Jina, Microlink): network-only
-
-Bump `CACHE_VERSION` in sw.js when updating cached assets to force a refresh.
+`VERSION` names the shell cache. Docker builds append the git SHA (`APP_VERSION`) so every deploy invalidates the shell; bump `VERSION` by hand when shipping to GitHub Pages. Precache uses `cache: 'reload'`. API responses are cached at runtime (network-first) for offline reading; `/api/meta` is stale-while-revalidate. Updates are not auto-applied — the page shows a "new version" toast and the SW skips waiting on request.
 
 ## Conventions
 
-- All DOM queries use `$()` and `$$()` helpers from utils.js (not `document.querySelector`)
-- Elements created via `createElement(tag, attrs, children)` helper
-- Caching: sessionStorage with `{data, ts}` JSON pattern and TTL checks
-- Dark mode: `.dark` class on `<html>`, persisted in localStorage as `hn_dark`
-- Tailwind config extends with `hn: '#ff6600'` color
-- Touch targets: minimum 44x44px via `.touch-target` class
-- View transitions: `.view-enter` (slideIn) and `.view-exit` (slideOut) CSS classes
+- DOM helpers `$`/`$$` from utils.js; render lists as HTML strings and use event delegation (thread trees can be 1000+ nodes).
+- All untrusted HTML (comments, articles) goes through `sanitizeHtml` in utils.js even though the server already sanitizes.
+- Styling is hand-written CSS in `static/css/app.css` with design tokens in `:root`; light and dark both defined, dark via `prefers-color-scheme` or `html[data-theme]`. Serif (Newsreader) for content, mono (IBM Plex Mono) for metadata and controls. Keep the single orange accent sparse.
+- Icons are generated from `static/icons/icon.svg`; the PNGs were rasterized with headless Chrome (maskable variants scale the mark into the 80% safe zone).
+
+## Deploy
+
+```bash
+ssh debian 'cd ~/HN && git pull && APP_VERSION=$(git rev-parse --short HEAD) docker compose up -d --build'
+```
+
+Cloudflare tunnel ingress for `hn.4mn.org → localhost:3026` lives in `/etc/cloudflared/config.yml` on the box; editing it needs no sudo, restarting `cloudflared` does.

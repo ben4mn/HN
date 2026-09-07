@@ -1,0 +1,39 @@
+<svg id="icon" width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#231f1c"/>
+      <stop offset="1" stop-color="#110f0e"/>
+    </linearGradient>
+    <radialGradient id="ember" cx="0.5" cy="0.62" r="0.62">
+      <stop offset="0" stop-color="#ffd2a8"/>
+      <stop offset="0.28" stop-color="#ff9a3c"/>
+      <stop offset="0.7" stop-color="#ff6600"/>
+      <stop offset="1" stop-color="#e64f00"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.6" r="0.5">
+      <stop offset="0" stop-color="#ff7a1a" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ff6600" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ff6600" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="26"/></filter>
+    <clipPath id="clip"><rect id="cliprect" width="512" height="512" rx="116"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect id="bgrect" width="512" height="512" fill="url(#bg)"/>
+    <!-- faint grid texture, hacker desk -->
+    <g id="grid" stroke="#ffffff" stroke-opacity="0.035" stroke-width="2">
+      <path d="M0 128H512M0 256H512M0 384H512M128 0V512M256 0V512M384 0V512"/>
+    </g>
+    <g id="mark">
+      <!-- glow halo -->
+      <circle cx="256" cy="300" r="190" fill="url(#glow)" filter="url(#blur)"/>
+      <!-- upvote ember: rounded triangle -->
+      <path d="M256 118 C268 118 276 126 284 140 L392 330 C402 347 392 366 372 366 L140 366 C120 366 110 347 120 330 L228 140 C236 126 244 118 256 118 Z" fill="url(#ember)"/>
+      <!-- highlight lick -->
+      <path d="M256 150 L322 268 C300 262 276 262 256 268 C236 262 212 262 190 268 Z" fill="#fff3e2" fill-opacity="0.18"/>
+      <!-- reading lines under: the story list -->
+      <rect x="150" y="396" width="212" height="18" rx="9" fill="#ffffff" fill-opacity="0.92"/>
+      <rect x="150" y="428" width="140" height="18" rx="9" fill="#ffffff" fill-opacity="0.45"/>
+    </g>
+  </g>
+</svg>

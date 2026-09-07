@@ -1,106 +1,167 @@
-// sw.js - Service Worker for HN Reader PWA
-const CACHE_VERSION = 'hn-v12';
-const PRECACHE_URLS = [
-  '/HN/',
-  '/HN/index.html',
-  '/HN/static/css/style.css',
-  '/HN/static/js/utils.js',
-  '/HN/static/js/api.js',
-  '/HN/static/js/thumbnails.js',
-  '/HN/static/js/extractive.js',
-  '/HN/static/js/summaries.js',
-  '/HN/static/js/settings.js',
-  '/HN/static/js/stories.js',
-  '/HN/static/js/comments.js',
-  '/HN/static/js/pullrefresh.js',
-  '/HN/static/js/reader.js',
-  '/HN/static/js/app.js',
-  '/HN/static/icon-192.png',
-  '/HN/static/icon-512.png',
-  '/HN/static/favicon.ico'
+// sw.js - HN Reader service worker
+// Shell is precached and versioned; API responses are cached at runtime for offline reading.
+
+const VERSION = '2.0.0';
+const SHELL = `hn-shell-${VERSION}`;
+const RUNTIME = 'hn-runtime';
+const RUNTIME_MAX = 400;
+
+const SHELL_FILES = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './static/css/app.css',
+  './static/js/utils.js',
+  './static/js/store.js',
+  './static/js/extractive.js',
+  './static/js/api.js',
+  './static/js/feed.js',
+  './static/js/reader.js',
+  './static/js/thread.js',
+  './static/js/gestures.js',
+  './static/js/app.js',
+  './static/vendor/marked.min.js',
+  './static/fonts/Newsreader-normal-400-700.woff2',
+  './static/fonts/Newsreader-italic-400-700.woff2',
+  './static/fonts/IBMPlexMono-normal-400.woff2',
+  './static/fonts/IBMPlexMono-normal-500.woff2',
+  './static/fonts/IBMPlexMono-normal-600.woff2',
+  './static/icons/icon.svg',
+  './static/icons/icon-192.png',
+  './static/icons/icon-512.png',
+  './static/icons/favicon.ico'
 ];
 
-const CDN_URLS = [
-  'cdn.tailwindcss.com',
-  'cdn.jsdelivr.net'
-];
+const scopeUrl = () => new URL(self.registration.scope);
 
-// Install: precache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(PRECACHE_URLS))
-  );
-  self.skipWaiting();
-});
-
-// Activate: clean old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+    caches.open(SHELL).then((cache) =>
+      // cache: 'reload' bypasses the HTTP cache so a new shell version never installs stale files.
+      cache.addAll(SHELL_FILES.map((f) => new Request(new URL(f, scopeUrl()).href, { cache: 'reload' })))
     )
   );
-  self.clients.claim();
+  // No skipWaiting here: the page shows an "update ready" toast and asks first.
 });
 
-// Fetch strategies
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k.startsWith('hn-shell-') && k !== SHELL).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })()
+  );
+});
 
-  // Static assets + app shell: stale-while-revalidate
-  if (url.pathname.startsWith('/HN/static/') || url.pathname === '/HN/' || url.pathname === '/HN/index.html') {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request).then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, clone));
-          return res;
-        }).catch(() => cached);
-        return cached || fetchPromise;
-      })
-    );
-    return;
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// ---- helpers ----
+
+async function trimRuntime() {
+  const cache = await caches.open(RUNTIME);
+  const keys = await cache.keys();
+  if (keys.length <= RUNTIME_MAX) return;
+  const drop = keys.slice(0, keys.length - RUNTIME_MAX);
+  await Promise.all(drop.map((k) => cache.delete(k)));
+}
+
+async function putRuntime(request, response) {
+  if (!response || !response.ok) return;
+  const cache = await caches.open(RUNTIME);
+  await cache.put(request, response.clone());
+  trimRuntime();
+}
+
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+async function networkFirst(request, { timeout = 8000 } = {}) {
+  try {
+    const res = await withTimeout(fetch(request), timeout);
+    if (res.ok) putRuntime(request, res);
+    return res;
+  } catch (err) {
+    const cached = await caches.match(request, { ignoreVary: true });
+    if (cached) return cached;
+    throw err;
   }
+}
 
-  // HN API: network-first with cache fallback
-  if (url.hostname === 'hacker-news.firebaseio.com') {
+async function staleWhileRevalidate(request) {
+  const cached = await caches.match(request, { ignoreVary: true });
+  const fetching = fetch(request).then((res) => { putRuntime(request, res); return res; }).catch(() => null);
+  return cached || (await fetching) || Response.error();
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request, { ignoreVary: true });
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res.ok) {
+    const cache = await caches.open(SHELL);
+    cache.put(request, res.clone());
+  }
+  return res;
+}
+
+async function shellFallback() {
+  const scope = scopeUrl();
+  return (await caches.match(new URL('./index.html', scope).href)) || (await caches.match(scope.href));
+}
+
+// ---- fetch ----
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  const scope = scopeUrl();
+  const sameOrigin = url.origin === scope.origin;
+  const inScope = sameOrigin && url.pathname.startsWith(scope.pathname);
+
+  // App navigations: network first, fall back to the cached shell.
+  if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
+      withTimeout(fetch(request), 4000)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, clone));
+          if (res.ok) caches.open(SHELL).then((c) => c.put(new URL('./index.html', scope).href, res.clone()));
           return res;
         })
-        .catch(() => caches.match(event.request))
+        .catch(async () => (await shellFallback()) || Response.error())
     );
     return;
   }
 
-  // CDN scripts: stale-while-revalidate
-  if (CDN_URLS.some((cdn) => url.hostname.includes(cdn))) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request).then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, clone));
-          return res;
-        });
-        return cached || fetchPromise;
-      })
-    );
+  // Our API
+  if (inScope && url.pathname.includes('/api/')) {
+    if (url.pathname.endsWith('/api/meta')) {
+      event.respondWith(staleWhileRevalidate(request));
+    } else if (url.pathname.endsWith('/api/health')) {
+      event.respondWith(fetch(request));
+    } else {
+      event.respondWith(networkFirst(request, { timeout: 12000 }));
+    }
     return;
   }
 
-  // Third-party APIs (Jina, OpenAI, Microlink): network-only
-  if (url.hostname.includes('r.jina.ai') ||
-      url.hostname.includes('api.openai.com') ||
-      url.hostname.includes('api.microlink.io')) {
-    event.respondWith(fetch(event.request));
+  // Static shell assets (fonts, css, js, icons): cache first.
+  if (inScope) {
+    event.respondWith(cacheFirst(request));
     return;
   }
 
-  // Default: network-first
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  // Direct-mode data sources (when no backend): network first with cache fallback.
+  if (url.hostname === 'hacker-news.firebaseio.com' || url.hostname === 'hn.algolia.com') {
+    event.respondWith(networkFirst(request, { timeout: 10000 }));
+    return;
+  }
+
+  // Everything else (images, Jina, favicons): straight to network.
 });
