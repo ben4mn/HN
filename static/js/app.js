@@ -31,6 +31,7 @@ const App = {
     this._bind();
     this._initServiceWorker();
     this._initVisibility();
+    if (localStorage.getItem('hn_debug') === '1') setTimeout(() => this._debugOverlay(), 300);
     this._initShare();
 
     window.addEventListener('hashchange', () => this.handleRoute());
@@ -492,7 +493,7 @@ const App = {
     $('#feed-search').addEventListener('submit', (e) => {
       e.preventDefault();
       const q = $('#search-input').value.trim();
-      if (q === ':debug') { this._debugOverlay(); $('#search-input').value = ''; return; }
+      if (q === ':debug') { localStorage.setItem('hn_debug', $('#hn-debug') ? '0' : '1'); this._debugOverlay(); $('#search-input').value = ''; $('#search-input').blur(); return; }
       if (q) this.navigate(`#/search/${encodeURIComponent(q)}`);
       $('#search-input').blur();
     });
@@ -608,7 +609,8 @@ const App = {
         `feed ${r('#feed')}  feedScroll ${r('#feed-scroll')}`,
         `tabbar ${r('#tabbar')}  pos ${getComputedStyle(tb).position} padB ${getComputedStyle(tb).paddingBottom} bottom ${getComputedStyle(tb).bottom}`,
         `sab ${getComputedStyle(document.documentElement).getPropertyValue('--sab')}  sat ${getComputedStyle(document.documentElement).getPropertyValue('--sat')}`,
-        `layout ${this.state.layout}  detail ${this.state.detailOpen}`
+        `layout ${this.state.layout}  detail ${this.state.detailOpen}  focus ${document.activeElement && document.activeElement.id}`,
+        `sbStyle ${document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.content}  gap ${screen.height - innerHeight}`
       ].join('\n');
     };
     tick();
