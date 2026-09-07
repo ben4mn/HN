@@ -11,62 +11,88 @@ const Gestures = {
     const scroll = $('#feed-scroll');
     const ptr = $('#ptr');
     const list = $('#story-list');
-    const THRESHOLD = 72;
-    const MAX = 110;
+    const foot = $('#feed-foot');
+    const THRESHOLD = 76;   // px of eased pull that arms a refresh
+    const HOLD = 58;        // resting offset while refreshing
+    const MIN_SPIN = 650;   // ms, so a fast refresh still reads as one
     let startY = 0;
     let pull = 0;
     let active = false;
     let refreshing = false;
-    let armed = false;
+    let armed = false;      // touch began at the top of the list
+    let past = false;       // pulled beyond the threshold
 
-    const setPull = (px) => {
+    const setPull = (px, { animate = false } = {}) => {
       pull = px;
       const p = clamp(px / THRESHOLD, 0, 1);
       ptr.style.setProperty('--pull', `${px}px`);
       ptr.style.setProperty('--p', p.toFixed(3));
-      ptr.classList.toggle('armed', p >= 1);
+      const t = animate ? 'transform 0.42s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+      list.style.transition = t;
+      foot.style.transition = t;
       list.style.transform = px ? `translateY(${px}px)` : '';
-      $('#feed-foot').style.transform = list.style.transform;
+      foot.style.transform = list.style.transform;
+    };
+    const ease = (dy) => {
+      // Rubber band: quick to start, then progressively heavier.
+      const k = 0.5;
+      return Math.min(THRESHOLD * 1.6, dy * k - Math.max(0, dy - THRESHOLD / k) * 0.28);
     };
 
     scroll.addEventListener('touchstart', (e) => {
-      if (refreshing || App.state.detailOpen && App.state.layout === 'mobile') return;
+      if (refreshing || (App.state.detailOpen && App.state.layout === 'mobile')) { armed = false; return; }
       if (scroll.scrollTop > 0) { armed = false; return; }
       startY = e.touches[0].clientY;
       armed = true;
       active = false;
+      past = false;
     }, { passive: true });
 
     scroll.addEventListener('touchmove', (e) => {
       if (!armed || refreshing) return;
       const dy = e.touches[0].clientY - startY;
       if (dy < 0 || scroll.scrollTop > 0) {
-        if (active) { active = false; setPull(0); ptr.classList.remove('active'); }
+        if (active) { active = false; ptr.classList.remove('active', 'armed'); setPull(0, { animate: true }); }
         return;
       }
-      if (!active && dy > 12) { active = true; ptr.classList.add('active'); list.style.transition = 'none'; }
+      if (!active && dy > 10) { active = true; ptr.classList.add('active'); ptr.classList.remove('settle', 'done'); }
       if (!active) return;
       if (e.cancelable) e.preventDefault();
-      // Rubber band
-      const eased = Math.min(MAX, dy * 0.45 + Math.max(0, dy - 160) * 0.1);
-      setPull(eased);
+      setPull(ease(dy));
+      const nowPast = pull >= THRESHOLD;
+      if (nowPast !== past) {
+        past = nowPast;
+        ptr.classList.toggle('armed', nowPast);
+        if (nowPast) haptic(6);
+      }
     }, { passive: false });
 
     const finish = async () => {
       if (!active) return;
       active = false;
-      list.style.transition = '';
       if (pull >= THRESHOLD && !refreshing) {
         refreshing = true;
+        ptr.classList.remove('armed');
         ptr.classList.add('refreshing');
-        setPull(56);
+        setPull(HOLD, { animate: true });
         haptic(10);
-        try { await App.refresh({ silent: true }); } catch { /* handled */ }
-        ptr.classList.remove('refreshing', 'armed');
+        const started = Date.now();
+        try { await App.refresh({ silent: true }); } catch { /* feed shows its own error */ }
+        const left = MIN_SPIN - (Date.now() - started);
+        if (left > 0) await new Promise((r) => setTimeout(r, left));
+        ptr.classList.remove('refreshing');
+        ptr.classList.add('done');
+        await new Promise((r) => setTimeout(r, 380));
+        ptr.classList.add('settle');
+        setPull(0, { animate: true });
+        await new Promise((r) => setTimeout(r, 320));
+        ptr.classList.remove('active', 'done', 'settle');
+        refreshing = false;
+        return;
       }
-      setPull(0);
-      ptr.classList.remove('active', 'armed');
-      refreshing = false;
+      ptr.classList.add('settle');
+      setPull(0, { animate: true });
+      setTimeout(() => ptr.classList.remove('active', 'armed', 'settle'), 320);
     };
     scroll.addEventListener('touchend', finish, { passive: true });
     scroll.addEventListener('touchcancel', finish, { passive: true });

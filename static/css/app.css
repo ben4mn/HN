@@ -40,7 +40,7 @@
   --reader-scale: 1;
   --sidebar: 400px;
   --head-h: 54px;
-  --tabbar-h: 58px;
+  --tabbar-h: 50px;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
@@ -94,6 +94,9 @@
 html { height: 100%; -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
+  position: fixed;
+  inset: 0;
+  width: 100%;
   height: 100%;
   background: var(--paper);
   color: var(--ink);
@@ -150,7 +153,6 @@ kbd {
   position: relative;
   z-index: 1;
   height: 100%;
-  height: 100dvh;
   display: grid;
   grid-template-rows: 1fr auto;
   grid-template-columns: 1fr;
@@ -243,7 +245,6 @@ kbd {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: var(--sab);
 }
 .feed-status {
   padding: 10px 14px 4px; font-size: 12px; color: var(--ink-3);
@@ -336,22 +337,48 @@ kbd {
   display: flex; justify-content: center; pointer-events: none;
   --pull: 0px; --p: 0;
 }
+.ptr-glow {
+  position: absolute; top: calc(var(--pull) - 70px); width: 160px; height: 80px; border-radius: 50%;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--accent) 38%, transparent), transparent 68%);
+  filter: blur(12px); opacity: calc(var(--p) * 0.9);
+}
 .ptr-disc {
-  position: absolute; top: calc(var(--pull) - 44px);
-  width: 34px; height: 34px; border-radius: 50%; background: var(--paper-2);
-  box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center;
-  opacity: var(--p); transform: scale(calc(0.6 + var(--p) * 0.4)) rotate(calc(var(--p) * 180deg));
-  transition: transform 0.15s;
+  position: absolute; top: calc(var(--pull) - 48px);
+  width: 40px; height: 40px; border-radius: 50%; background: var(--paper-2);
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--line);
+  display: grid; place-items: center;
+  opacity: min(1, calc(var(--p) * 1.8));
+  transform: scale(calc(0.72 + var(--p) * 0.28));
 }
-.ptr.armed .ptr-disc { transform: scale(1) rotate(180deg); }
-.ptr-arrow { width: 18px; height: 18px; color: var(--accent); stroke-width: 2.2; }
-.ptr-spin {
-  position: absolute; inset: 6px; border-radius: 50%; border: 2px solid var(--accent-soft);
-  border-top-color: var(--accent); opacity: 0;
+.ptr-ring, .ptr-mark { grid-area: 1 / 1; }
+.ptr-ring { width: 40px; height: 40px; transform: rotate(-90deg); }
+.ptr-ring circle {
+  fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
+  stroke-dasharray: 100.5; stroke-dashoffset: calc(100.5 * (1 - var(--p)));
+  opacity: 0.95;
 }
-.ptr.refreshing .ptr-disc { transform: scale(1) rotate(0); }
-.ptr.refreshing .ptr-arrow { opacity: 0; }
-.ptr.refreshing .ptr-spin { opacity: 1; animation: spin 0.7s linear infinite; }
+.ptr-track { stroke: var(--line-strong) !important; stroke-dasharray: none !important; stroke-dashoffset: 0 !important; opacity: 0.5 !important; }
+.ptr-mark {
+  width: 14px; height: 14px; fill: var(--accent); stroke: none;
+  transform: scale(calc(0.55 + var(--p) * 0.45)) translateY(-0.5px);
+  transition: filter 0.2s;
+}
+.ptr.armed .ptr-mark { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 80%, transparent)); }
+.ptr.armed .ptr-disc { transform: scale(1.04); transition: transform 0.18s var(--ease); }
+.ptr.refreshing .ptr-disc, .ptr.done .ptr-disc { opacity: 1; transform: scale(1); }
+.ptr.refreshing .ptr-ring { animation: ptr-spin 0.9s linear infinite; }
+.ptr.refreshing .ptr-ring circle:not(.ptr-track) { stroke-dashoffset: 72; transition: stroke-dashoffset 0.25s; }
+.ptr.refreshing .ptr-mark { animation: ptr-kindle 0.9s ease-in-out infinite; }
+.ptr.refreshing .ptr-glow { opacity: 0.9; animation: ptr-pulse 1.2s ease-in-out infinite; }
+.ptr.done .ptr-ring { transform: rotate(-90deg); }
+.ptr.done .ptr-ring circle:not(.ptr-track) { stroke-dashoffset: 0; transition: stroke-dashoffset 0.3s var(--ease); }
+.ptr.done .ptr-mark { transform: scale(1.15); filter: drop-shadow(0 0 7px var(--accent)); transition: transform 0.25s var(--ease), filter 0.25s; }
+.ptr.done .ptr-glow { opacity: 0; transition: opacity 0.35s; }
+.ptr.settle .ptr-disc { opacity: 0; transform: scale(0.6); transition: opacity 0.22s, transform 0.28s var(--ease); }
+.ptr.settle .ptr-glow { opacity: 0; transition: opacity 0.22s; }
+@keyframes ptr-spin { to { transform: rotate(270deg); } }
+@keyframes ptr-kindle { 0%, 100% { transform: scale(0.9); opacity: 0.75; } 50% { transform: scale(1.1); opacity: 1; } }
+@keyframes ptr-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 
 /* ---------- Mobile tab bar ---------- */
 .tabbar {
@@ -365,7 +392,7 @@ kbd {
 }
 .tabbar-btn {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; color: var(--ink-3); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  gap: 2px; padding-top: 2px; color: var(--ink-3); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   transition: color 0.15s;
 }
 .tabbar-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }

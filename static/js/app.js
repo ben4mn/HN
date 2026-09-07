@@ -46,8 +46,11 @@ const App = {
     this._mq = { two: matchMedia('(min-width: 768px)'), three: matchMedia('(min-width: 1180px)') };
     const apply = () => {
       const l = this._mq.three.matches ? 'three' : this._mq.two.matches ? 'two' : 'mobile';
+      const was = this.state.layout;
       this.state.layout = l;
       document.body.dataset.layout = l;
+      // Collapsing to a phone width while on a feed route: the desktop detail pane must not linger as an overlay.
+      if (l === 'mobile' && was !== 'mobile' && this.state.route && this.state.route.name !== 'item') this.closeDetail();
       this._syncDetail();
       Thread._updateJump();
     };
