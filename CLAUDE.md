@@ -48,6 +48,13 @@ Layout: each pane is its own scroll container, so feed scroll position survives 
 
 `VERSION` names the shell cache. Docker builds append the git SHA (`APP_VERSION`) so every deploy invalidates the shell; bump `VERSION` by hand when shipping to GitHub Pages. Precache uses `cache: 'reload'`. API responses are cached at runtime (network-first) for offline reading; `/api/meta` is stale-while-revalidate. Updates are not auto-applied — the page shows a "new version" toast and the SW skips waiting on request.
 
+## iOS standalone gotchas (verified on the iOS 26.5 simulator)
+
+- Keep `apple-mobile-web-app-status-bar-style` at `default`. With `black-translucent`, iOS 26 reports `innerHeight` = screen height minus the top safe-area inset while still drawing from the top of the screen, so anything anchored to `bottom: 0` floats ~62pt above the home indicator. `default` still gives a full-bleed view with correct `env(safe-area-inset-*)` values.
+- Inputs need `font-size: 16px` or larger or Safari zooms the page on focus; `maximum-scale=1` in the viewport meta suppresses that zoom without blocking pinch zoom.
+- Type `:debug` in the search box to toggle a persistent layout diagnostics overlay (window, visual viewport, safe-area values, tab bar rect).
+- To test as an installed web app: `xcrun simctl boot "iPhone 17 Pro"`, open the site in Safari, ⋯ → Share → View More → Add to Home Screen. Meta tags are captured at install, so re-add the web clip after changing them.
+
 ## Conventions
 
 - DOM helpers `$`/`$$` from utils.js; render lists as HTML strings and use event delegation (thread trees can be 1000+ nodes).
