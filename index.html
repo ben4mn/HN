@@ -3,8 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <title>HN — Hacker News reader</title>
-  <meta name="description" content="A fast, readable Hacker News client. Articles and comments side by side on desktop, a native-feeling stack on your phone.">
+  <title>HN Reader — a fast, readable Hacker News client</title>
+  <meta name="description" content="Read Hacker News without the squint: a clean article reader, threaded comments you can collapse, and a desktop view with the story and its discussion side by side. Free, no account, installs as an app.">
+  <link rel="canonical" href="https://hn.4mn.org/">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="author" content="Ben">
+
+  <!-- Link previews: iMessage, Threads, X, Slack, Discord all read these -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HN Reader">
+  <meta property="og:title" content="HN Reader — Hacker News, made readable">
+  <meta property="og:description" content="A clean article reader, threaded comments, and a desktop split view for Hacker News. Free, no account, works offline.">
+  <meta property="og:url" content="https://hn.4mn.org/">
+  <meta property="og:image" content="https://hn.4mn.org/static/icons/og.png">
+  <meta property="og:image:secure_url" content="https://hn.4mn.org/static/icons/og.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="HN Reader: a glowing orange upvote mark over story lines, with the tagline Hacker News, readable.">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HN Reader — Hacker News, made readable">
+  <meta name="twitter:description" content="A clean article reader, threaded comments, and a desktop split view for Hacker News. Free, no account, works offline.">
+  <meta name="twitter:image" content="https://hn.4mn.org/static/icons/og.png">
+  <meta name="twitter:image:alt" content="HN Reader: a glowing orange upvote mark over story lines.">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "HN Reader",
+    "alternateName": "HN — Hacker News reader",
+    "url": "https://hn.4mn.org/",
+    "description": "A fast, readable Hacker News client with a clean article reader, threaded collapsible comments, search, saved stories, and a desktop view that shows a story and its discussion side by side.",
+    "applicationCategory": "NewsApplication",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "image": "https://hn.4mn.org/static/icons/og.png",
+    "author": { "@type": "Person", "name": "Ben", "url": "https://4mn.org" },
+    "isBasedOn": "https://news.ycombinator.com/",
+    "codeRepository": "https://github.com/ben4mn/HN"
+  }
+  </script>
   <meta name="theme-color" content="#f6f1e8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
@@ -31,6 +72,12 @@
   </script>
 </head>
 <body>
+  <h1 class="sr-only">HN Reader — a fast, readable Hacker News client</h1>
+  <noscript>
+    <div class="nojs">
+      <p><strong>HN Reader</strong> is a free, readable client for <a href="https://news.ycombinator.com/">Hacker News</a>: a clean article reader, threaded comments you can collapse, search, saved stories, and a desktop layout with the story and its discussion side by side. It needs JavaScript to run.</p>
+    </div>
+  </noscript>
   <div id="app" class="app">
 
     <!-- ===== Feed pane ===== -->

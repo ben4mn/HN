@@ -135,6 +135,9 @@ kbd {
   border-bottom-width: 2px; border-radius: 4px; margin: 0 1px; color: var(--ink-2);
 }
 .muted { color: var(--ink-3); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.nojs { max-width: 60ch; margin: 24px auto; padding: 0 20px; font-size: 16px; line-height: 1.5; }
+.nojs a { color: var(--accent-ink); text-decoration: underline; }
 .story-meta, .story-rank, .kicker, .article-meta, .thread-meta, .c-head, .tab, .tabbar-btn span,
 .seg-btn, .chip, .btn, .feed-status, .feed-offline, .toast, .thread-tools, .thread-end, .thread-count,
 .story-domain, .feed-empty .hint, .detail-empty .hint, .tldr summary, .article-notice, .thread-notice {

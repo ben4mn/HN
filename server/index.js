@@ -118,6 +118,16 @@ app.get('/manifest.webmanifest', (req, res) => {
   res.type('application/manifest+json');
   res.sendFile(path.join(ROOT, 'manifest.webmanifest'));
 });
+app.get('/robots.txt', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.type('text/plain');
+  res.sendFile(path.join(ROOT, 'robots.txt'));
+});
+app.get('/sitemap.xml', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.type('application/xml');
+  res.sendFile(path.join(ROOT, 'sitemap.xml'));
+});
 app.get(['/', '/index.html'], (req, res) => {
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(ROOT, 'index.html'));

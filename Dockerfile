@@ -7,7 +7,7 @@ COPY server/package.json server/package-lock.json* ./server/
 RUN cd server && npm ci --omit=dev 2>/dev/null || (cd server && npm install --omit=dev)
 
 # Static PWA + server source
-COPY index.html manifest.webmanifest sw.js ./
+COPY index.html manifest.webmanifest sw.js robots.txt sitemap.xml ./
 COPY static ./static
 COPY server ./server
 
