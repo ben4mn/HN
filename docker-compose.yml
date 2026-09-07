@@ -8,6 +8,8 @@ services:
         APP_VERSION: ${APP_VERSION:-dev}
     container_name: hn
     restart: unless-stopped
+    # Single container: ride the default bridge so no new subnet is needed (the box is out of pools).
+    network_mode: bridge
     environment:
       TZ: America/Denver
     ports: ["3026:3000"]
